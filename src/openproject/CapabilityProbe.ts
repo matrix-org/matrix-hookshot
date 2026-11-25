@@ -397,17 +397,21 @@ export function createOpenProjectProbeHandler(
   };
 }
 
-/** Wire OpenProject dependencies into its probe without exposing them to Bridge. */
-export function createOpenProjectCapabilityProbe(dependencies: {
+export interface OpenProjectCapabilityProbeDependencies {
   appservice: Appservice;
   config: BridgeConfig;
   getConnectionManager: () => ConnectionManager | undefined;
   storage: IBridgeStorageProvider;
   tokenStore: Pick<UserTokenStore, "openProjectOAuth">;
-}): HookshotProbeHandler {
+}
+
+/** Build the shared access services used by all OpenProject to-device handlers. */
+export function createOpenProjectProbeServices(
+  dependencies: OpenProjectCapabilityProbeDependencies,
+): OpenProjectProbeServices {
   const { appservice, config, getConnectionManager, storage, tokenStore } =
     dependencies;
-  return createOpenProjectProbeHandler({
+  return {
     ...createMatrixProbeServices(appservice),
     hasOpenProjectCommandPermission: (userId) =>
       config.checkPermission(
@@ -428,7 +432,16 @@ export function createOpenProjectCapabilityProbe(dependencies: {
       ).map((connection) => connection.getCapabilityConnection()),
     getOpenProjectAnchorState: (connectionId, workPackageId) =>
       storage.getOpenProjectAnchorState(connectionId, workPackageId),
-  });
+  };
+}
+
+/** Wire OpenProject dependencies into its probe without exposing them to Bridge. */
+export function createOpenProjectCapabilityProbe(
+  dependencies: OpenProjectCapabilityProbeDependencies,
+): HookshotProbeHandler {
+  return createOpenProjectProbeHandler(
+    createOpenProjectProbeServices(dependencies),
+  );
 }
 
 function getLoginCapability(

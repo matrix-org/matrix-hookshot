@@ -72,6 +72,12 @@ export type HookshotLoginStartResponse =
       result: Exclude<HookshotLoginStartResult, "ready">;
     });
 
+export type HookshotLoginStartResponseState =
+  | { result: "ready"; auth_url: string }
+  | {
+      result: Exclude<HookshotLoginStartResult, "ready">;
+    };
+
 export interface HookshotLoginStatusRequest {
   v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
   request_id: string;
@@ -87,6 +93,11 @@ export interface HookshotLoginStatusResponse {
   integration_id: HookshotIntegrationId;
   result: HookshotLoginStatusResult;
 }
+
+export type HookshotLoginStatusResponseState = Pick<
+  HookshotLoginStatusResponse,
+  "result"
+>;
 
 export interface HookshotCapabilitiesProbeResponse {
   v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;

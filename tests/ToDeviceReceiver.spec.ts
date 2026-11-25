@@ -9,6 +9,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
 } from "../src/ToDeviceProtocol";
 import {
@@ -26,6 +30,16 @@ const validRequest = {
   integration_id: "openproject",
   room_id: "!room:example.org",
   anchor_event_id: "$anchor",
+};
+
+const validLoginStartRequest = {
+  ...validRequest,
+  request_id: "login-start-123",
+};
+
+const validLoginStatusRequest = {
+  ...validRequest,
+  request_id: "login-status-123",
 };
 
 class FakeAppservice extends EventEmitter {
@@ -76,6 +90,257 @@ function createReceiver(
 }
 
 describe("Hookshot to-device receiver", () => {
+  it("routes login-start by integration and targets the requesting device", async () => {
+    const appservice = new FakeAppservice();
+    const openProjectLoginStart = vi.fn().mockResolvedValue({
+      result: "ready",
+      auth_url: "https://openproject.example.org/oauth/authorize?state=private",
+    });
+    const githubLoginStart = vi
+      .fn()
+      .mockResolvedValue({ result: "not_authorized" });
+    const githubBotUserId = "@github:example.org";
+    const receiver = createReceiver(
+      appservice,
+      {},
+      new Map([
+        [
+          "openproject",
+          {
+            botUserId,
+            probeHandler: vi.fn().mockResolvedValue({ result: "unavailable" }),
+            loginStartHandler: openProjectLoginStart,
+          },
+        ],
+        [
+          "github",
+          {
+            botUserId: githubBotUserId,
+            probeHandler: vi.fn().mockResolvedValue({ result: "unavailable" }),
+            loginStartHandler: githubLoginStart,
+          },
+        ],
+      ]),
+    );
+
+    await receiver.handleToDeviceEvent(
+      makeEvent(validLoginStartRequest, {
+        type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+      }),
+    );
+    await receiver.handleToDeviceEvent(
+      makeEvent(
+        {
+          ...validLoginStartRequest,
+          request_id: "github-login-start",
+          integration_id: "github",
+        },
+        { type: HOOKSHOT_LOGIN_START_EVENT_TYPE, to_user_id: githubBotUserId },
+      ),
+    );
+
+    expect(openProjectLoginStart).toHaveBeenCalledWith(validLoginStartRequest, {
+      sender,
+      recipientBotUserId: botUserId,
+    });
+    expect(githubLoginStart).toHaveBeenCalledOnce();
+    expect(appservice.sendToDevices).toHaveBeenNthCalledWith(
+      1,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      {
+        [sender]: {
+          ELEMENTDEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: validLoginStartRequest.request_id,
+            integration_id: "openproject",
+            result: "ready",
+            auth_url:
+              "https://openproject.example.org/oauth/authorize?state=private",
+          },
+        },
+      },
+    );
+    expect(appservice.sendToDevices).toHaveBeenNthCalledWith(
+      2,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      {
+        [sender]: {
+          ELEMENTDEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: "github-login-start",
+            integration_id: "github",
+            result: "not_authorized",
+          },
+        },
+      },
+    );
+  });
+
+  it("routes connection-status requests and returns only the correlated status", async () => {
+    const appservice = new FakeAppservice();
+    const loginStatusHandler = vi
+      .fn()
+      .mockResolvedValue({ result: "connected" });
+    const receiver = createReceiver(
+      appservice,
+      {},
+      new Map([
+        [
+          "openproject",
+          {
+            botUserId,
+            probeHandler: vi.fn().mockResolvedValue({ result: "unavailable" }),
+            loginStatusHandler,
+          },
+        ],
+      ]),
+    );
+
+    await receiver.handleToDeviceEvent(
+      makeEvent(validLoginStatusRequest, {
+        type: HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+      }),
+    );
+
+    expect(loginStatusHandler).toHaveBeenCalledOnce();
+    expect(appservice.sendToDevices).toHaveBeenCalledWith(
+      HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+      {
+        [sender]: {
+          ELEMENTDEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: validLoginStatusRequest.request_id,
+            integration_id: "openproject",
+            result: "connected",
+          },
+        },
+      },
+    );
+  });
+
+  it("returns unavailable when an integration has no login handler", async () => {
+    const appservice = new FakeAppservice();
+    const receiver = createReceiver(appservice);
+
+    await receiver.handleToDeviceEvent(
+      makeEvent(validLoginStartRequest, {
+        type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+      }),
+    );
+    await receiver.handleToDeviceEvent(
+      makeEvent(validLoginStatusRequest, {
+        type: HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+      }),
+    );
+
+    expect(appservice.sendToDevices).toHaveBeenNthCalledWith(
+      1,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      {
+        [sender]: {
+          ELEMENTDEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: validLoginStartRequest.request_id,
+            integration_id: "openproject",
+            result: "unavailable",
+          },
+        },
+      },
+    );
+    expect(appservice.sendToDevices).toHaveBeenNthCalledWith(
+      2,
+      HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+      {
+        [sender]: {
+          ELEMENTDEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: validLoginStatusRequest.request_id,
+            integration_id: "openproject",
+            result: "unavailable",
+          },
+        },
+      },
+    );
+  });
+
+  it("ignores login requests with invalid content, unknown integrations, or the wrong bot", async () => {
+    const appservice = new FakeAppservice();
+    const loginStartHandler = vi
+      .fn()
+      .mockResolvedValue({ result: "unavailable" });
+    const receiver = createReceiver(
+      appservice,
+      {},
+      new Map([
+        [
+          "openproject",
+          {
+            botUserId,
+            probeHandler: vi.fn().mockResolvedValue({ result: "unavailable" }),
+            loginStartHandler,
+          },
+        ],
+      ]),
+    );
+
+    await receiver.handleToDeviceEvent(
+      makeEvent(
+        { ...validLoginStartRequest, user_id: sender },
+        { type: HOOKSHOT_LOGIN_START_EVENT_TYPE },
+      ),
+    );
+    await receiver.handleToDeviceEvent(
+      makeEvent(
+        { ...validLoginStartRequest, integration_id: "github" },
+        { type: HOOKSHOT_LOGIN_START_EVENT_TYPE },
+      ),
+    );
+    await receiver.handleToDeviceEvent(
+      makeEvent(validLoginStartRequest, {
+        type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+        to_user_id: "@other:example.org",
+      }),
+    );
+
+    expect(loginStartHandler).not.toHaveBeenCalled();
+    expect(appservice.sendToDevices).not.toHaveBeenCalled();
+  });
+
+  it("does not send a response or retry a failed handler within the deduplication window", async () => {
+    const appservice = new FakeAppservice();
+    const loginStartHandler = vi.fn().mockRejectedValue(new Error("failure"));
+    const receiver = createReceiver(
+      appservice,
+      {},
+      new Map([
+        [
+          "openproject",
+          {
+            botUserId,
+            probeHandler: vi.fn().mockResolvedValue({ result: "unavailable" }),
+            loginStartHandler,
+          },
+        ],
+      ]),
+    );
+
+    await expect(
+      receiver.handleToDeviceEvent(
+        makeEvent(validLoginStartRequest, {
+          type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+        }),
+      ),
+    ).rejects.toThrow("failure");
+    await receiver.handleToDeviceEvent(
+      makeEvent(validLoginStartRequest, {
+        type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+      }),
+    );
+
+    expect(loginStartHandler).toHaveBeenCalledOnce();
+    expect(appservice.sendToDevices).not.toHaveBeenCalled();
+  });
+
   it("sends a targeted transport response for a valid probe", async () => {
     const appservice = new FakeAppservice();
     const receiver = createReceiver(appservice);

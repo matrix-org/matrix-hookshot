@@ -4,11 +4,23 @@ import { Logger } from "matrix-appservice-bridge";
 import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
   HookshotCapabilitiesProbeRequest,
   HookshotCapabilitiesProbeResponse,
   HookshotIntegrationId,
+  HookshotLoginStartRequest,
+  HookshotLoginStartResponse,
+  HookshotLoginStartResponseState,
+  HookshotLoginStatusRequest,
+  HookshotLoginStatusResponse,
+  HookshotLoginStatusResponseState,
   isHookshotCapabilitiesProbeRequest,
+  isHookshotLoginStartRequest,
+  isHookshotLoginStatusRequest,
   isMatrixUserId,
 } from "./ToDeviceProtocol";
 
@@ -31,10 +43,22 @@ export type HookshotProbeHandler = (
   context: HookshotProbeContext,
 ) => Promise<HookshotProbeResponseState>;
 
-/** A deployment-selected bot and the integration that serves its probes. */
+export type HookshotLoginStartHandler = (
+  request: HookshotLoginStartRequest,
+  context: HookshotProbeContext,
+) => Promise<HookshotLoginStartResponseState>;
+
+export type HookshotLoginStatusHandler = (
+  request: HookshotLoginStatusRequest,
+  context: HookshotProbeContext,
+) => Promise<HookshotLoginStatusResponseState>;
+
+/** A deployment-selected bot and the integration's to-device handlers. */
 export interface HookshotCapabilityEndpoint {
   botUserId: string;
   probeHandler: HookshotProbeHandler;
+  loginStartHandler?: HookshotLoginStartHandler;
+  loginStatusHandler?: HookshotLoginStatusHandler;
 }
 
 export interface HookshotToDeviceReceiverOptions {
@@ -120,7 +144,11 @@ export class HookshotToDeviceReceiver {
         String(event.to_user_id),
     );
 
-    if (event.type !== HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE) {
+    if (
+      event.type !== HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE &&
+      event.type !== HOOKSHOT_LOGIN_START_EVENT_TYPE &&
+      event.type !== HOOKSHOT_LOGIN_STATUS_EVENT_TYPE
+    ) {
       return;
     }
 
@@ -128,37 +156,52 @@ export class HookshotToDeviceReceiver {
       return;
     }
 
-    const request = event.content;
-    if (!isHookshotCapabilitiesProbeRequest(request)) {
-      return;
+    switch (event.type) {
+      case HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE: {
+        const request = event.content;
+        if (isHookshotCapabilitiesProbeRequest(request)) {
+          await this.handleProbeRequest(event, request);
+        }
+        return;
+      }
+      case HOOKSHOT_LOGIN_START_EVENT_TYPE: {
+        const request = event.content;
+        if (isHookshotLoginStartRequest(request)) {
+          await this.handleLoginStartRequest(event, request);
+        }
+        return;
+      }
+      case HOOKSHOT_LOGIN_STATUS_EVENT_TYPE: {
+        const request = event.content;
+        if (isHookshotLoginStatusRequest(request)) {
+          await this.handleLoginStatusRequest(event, request);
+        }
+      }
     }
+  }
 
-    const integration = this.integrations.get(request.integration_id);
-    if (!integration || integration.botUserId !== event.to_user_id) {
-      return;
-    }
-    const expectedBotUserId = integration.botUserId;
-
-    this.pruneDeduplication();
-    const deduplicationKey = `${event.sender}\u0000${request.integration_id}\u0000${request.request_id}`;
-    if (this.deduplication.has(deduplicationKey)) {
-      log.debug(
-        "Ignoring duplicate to-device probe request_id=" + request.request_id,
-      );
-      return;
-    }
-
-    this.remember(deduplicationKey);
-    log.debug(
-      "Accepted to-device probe integration=" +
-        request.integration_id +
-        " request_id=" +
-        request.request_id,
+  private async handleProbeRequest(
+    event: IAppserviceToDeviceEvent<unknown>,
+    request: HookshotCapabilitiesProbeRequest,
+  ): Promise<void> {
+    const integration = this.getIntegration(
+      event.to_user_id,
+      request.integration_id,
     );
-
+    if (
+      !integration ||
+      !this.acceptRequest(
+        event.sender,
+        request.integration_id,
+        request.request_id,
+        "probe",
+      )
+    ) {
+      return;
+    }
     const responseState = await integration.probeHandler(request, {
       sender: event.sender,
-      recipientBotUserId: expectedBotUserId,
+      recipientBotUserId: integration.botUserId,
     });
     const response: HookshotCapabilitiesProbeResponse = {
       v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
@@ -166,25 +209,145 @@ export class HookshotToDeviceReceiver {
       integration_id: request.integration_id,
       ...responseState,
     };
+    await this.sendResponse(
+      integration.botUserId,
+      event.sender,
+      request.requesting_device_id,
+      request.request_id,
+      HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      response,
+    );
+  }
 
-    await this.appservice
-      .getIntentForUserId(expectedBotUserId)
-      .underlyingClient.sendToDevices(
-        HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
-        {
-          [event.sender]: {
-            [request.requesting_device_id]: response,
-          },
-        },
-      );
-
-    log.debug(
-      "Sent to-device response type=" +
-        HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE +
-        " to=" +
-        event.sender +
-        " request_id=" +
+  private async handleLoginStartRequest(
+    event: IAppserviceToDeviceEvent<unknown>,
+    request: HookshotLoginStartRequest,
+  ): Promise<void> {
+    const integration = this.getIntegration(
+      event.to_user_id,
+      request.integration_id,
+    );
+    if (
+      !integration ||
+      !this.acceptRequest(
+        event.sender,
+        request.integration_id,
         request.request_id,
+        "login-start",
+      )
+    ) {
+      return;
+    }
+    const responseState = integration.loginStartHandler
+      ? await integration.loginStartHandler(request, {
+          sender: event.sender,
+          recipientBotUserId: integration.botUserId,
+        })
+      : { result: "unavailable" as const };
+    const response: HookshotLoginStartResponse = {
+      v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+      request_id: request.request_id,
+      integration_id: request.integration_id,
+      ...responseState,
+    };
+    await this.sendResponse(
+      integration.botUserId,
+      event.sender,
+      request.requesting_device_id,
+      request.request_id,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      response,
+    );
+  }
+
+  private async handleLoginStatusRequest(
+    event: IAppserviceToDeviceEvent<unknown>,
+    request: HookshotLoginStatusRequest,
+  ): Promise<void> {
+    const integration = this.getIntegration(
+      event.to_user_id,
+      request.integration_id,
+    );
+    if (
+      !integration ||
+      !this.acceptRequest(
+        event.sender,
+        request.integration_id,
+        request.request_id,
+        "login-status",
+      )
+    ) {
+      return;
+    }
+    const responseState = integration.loginStatusHandler
+      ? await integration.loginStatusHandler(request, {
+          sender: event.sender,
+          recipientBotUserId: integration.botUserId,
+        })
+      : { result: "unavailable" as const };
+    const response: HookshotLoginStatusResponse = {
+      v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+      request_id: request.request_id,
+      integration_id: request.integration_id,
+      ...responseState,
+    };
+    await this.sendResponse(
+      integration.botUserId,
+      event.sender,
+      request.requesting_device_id,
+      request.request_id,
+      HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+      response,
+    );
+  }
+
+  private getIntegration(
+    toUserId: string,
+    integrationId: HookshotIntegrationId,
+  ): HookshotCapabilityEndpoint | undefined {
+    const integration = this.integrations.get(integrationId);
+    return integration?.botUserId === toUserId ? integration : undefined;
+  }
+
+  private acceptRequest(
+    sender: string,
+    integrationId: HookshotIntegrationId,
+    requestId: string,
+    requestKind: "probe" | "login-start" | "login-status",
+  ): boolean {
+    this.pruneDeduplication();
+    const deduplicationKey = `${sender}\u0000${integrationId}\u0000${requestId}`;
+    if (this.deduplication.has(deduplicationKey)) {
+      log.debug(
+        `Ignoring duplicate to-device ${requestKind} request_id=${requestId}`,
+      );
+      return false;
+    }
+
+    this.remember(deduplicationKey);
+    log.debug(
+      `Accepted to-device ${requestKind} integration=${integrationId} request_id=${requestId}`,
+    );
+    return true;
+  }
+
+  private async sendResponse(
+    botUserId: string,
+    sender: string,
+    deviceId: string,
+    requestId: string,
+    responseEventType: string,
+    response: unknown,
+  ): Promise<void> {
+    await this.appservice
+      .getIntentForUserId(botUserId)
+      .underlyingClient.sendToDevices(responseEventType, {
+        [sender]: {
+          [deviceId]: response,
+        },
+      });
+    log.debug(
+      `Sent to-device response type=${responseEventType} to=${sender} request_id=${requestId}`,
     );
   }
 

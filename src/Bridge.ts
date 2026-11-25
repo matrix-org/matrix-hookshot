@@ -119,6 +119,7 @@ import {
   createOpenProjectCapabilityProbe,
   OPENPROJECT_INTEGRATION_ID,
 } from "./openproject/CapabilityProbe";
+import { createOpenProjectLoginHandlers } from "./openproject/LoginHandlers";
 import { TimelineManager } from "./openproject/TimelineManager";
 
 const log = new Logger("Bridge");
@@ -2198,19 +2199,25 @@ export class Bridge {
       if (!botUser) {
         continue;
       }
-      integrations.set(service, {
-        botUserId: botUser.userId,
-        probeHandler:
-          service === OPENPROJECT_INTEGRATION_ID
-            ? createOpenProjectCapabilityProbe({
-                appservice: this.as,
-                config: this.config,
-                getConnectionManager: () => this.connectionManager,
-                storage: this.storage,
-                tokenStore: this.tokenStore,
-              })
-            : async () => ({ result: "unavailable" }),
-      });
+      if (service === OPENPROJECT_INTEGRATION_ID) {
+        const dependencies = {
+          appservice: this.as,
+          config: this.config,
+          getConnectionManager: () => this.connectionManager,
+          storage: this.storage,
+          tokenStore: this.tokenStore,
+        };
+        integrations.set(service, {
+          botUserId: botUser.userId,
+          probeHandler: createOpenProjectCapabilityProbe(dependencies),
+          ...createOpenProjectLoginHandlers(dependencies),
+        });
+      } else {
+        integrations.set(service, {
+          botUserId: botUser.userId,
+          probeHandler: async () => ({ result: "unavailable" }),
+        });
+      }
     }
     for (const botUserId of new Set(
       Array.from(integrations.values(), (entry) => entry.botUserId),

@@ -6,6 +6,10 @@ import { Bridge } from "../src/Bridge";
 import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
 } from "../src/ToDeviceProtocol";
 
@@ -148,6 +152,63 @@ describe("to-device receiver startup", () => {
             v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
             request_id: "generic",
             integration_id: "generic",
+            result: "unavailable",
+          },
+        },
+      },
+    );
+  });
+
+  it("wires OpenProject login-start and status handlers to their response event types", async () => {
+    const appservice = new FakeAppservice();
+    const bridge = createBridge(appservice, [
+      { userId: "@openproject:example.org", services: ["openproject"] },
+    ]);
+    await bridge["startToDeviceReceiver"]();
+
+    const requestBase = {
+      v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+      requesting_device_id: "ALICE_DEVICE",
+      integration_id: "openproject",
+      room_id: "!room:example.org",
+      anchor_event_id: "$anchor",
+    };
+    await bridge["toDeviceReceiver"]!.handleToDeviceEvent({
+      type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+      sender: "@alice:example.org",
+      to_user_id: "@openproject:example.org",
+      content: { ...requestBase, request_id: "login-start" },
+    });
+    await bridge["toDeviceReceiver"]!.handleToDeviceEvent({
+      type: HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+      sender: "@alice:example.org",
+      to_user_id: "@openproject:example.org",
+      content: { ...requestBase, request_id: "login-status" },
+    });
+
+    expect(appservice.sendToDevices).toHaveBeenNthCalledWith(
+      1,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      {
+        "@alice:example.org": {
+          ALICE_DEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: "login-start",
+            integration_id: "openproject",
+            result: "not_authorized",
+          },
+        },
+      },
+    );
+    expect(appservice.sendToDevices).toHaveBeenNthCalledWith(
+      2,
+      HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+      {
+        "@alice:example.org": {
+          ALICE_DEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: "login-status",
+            integration_id: "openproject",
             result: "unavailable",
           },
         },

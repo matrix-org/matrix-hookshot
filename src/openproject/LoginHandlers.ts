@@ -1,25 +1,39 @@
 import type {
   HookshotLoginStartRequest,
+  HookshotLoginStartResponseState,
   HookshotLoginStatusRequest,
-  HookshotLoginStatusResult,
+  HookshotLoginStatusResponseState,
 } from "../ToDeviceProtocol";
 import type { HookshotProbeContext } from "../ToDeviceReceiver";
 import {
   authorizeOpenProjectRequest,
+  createOpenProjectProbeServices,
+  OpenProjectCapabilityProbeDependencies,
   OpenProjectProbeServices,
 } from "./CapabilityProbe";
+import type { UserTokenStore } from "../tokens/UserTokenStore";
 
 export type OpenProjectLoginStartResponseState =
-  | { result: "ready"; auth_url: string }
-  | {
-      result: "already_connected" | "not_authorized" | "unavailable";
-    };
+  HookshotLoginStartResponseState;
 
 export interface OpenProjectLoginHandlerServices extends OpenProjectProbeServices {
   getOpenProjectToken: (userId: string) => Promise<string | null>;
   createOAuthState: (userId: string) => string;
   getAuthUrl: (state: string) => Promise<string>;
   discardOAuthState: (state: string) => void;
+}
+
+export interface OpenProjectLoginHandlerDependencies extends Omit<
+  OpenProjectCapabilityProbeDependencies,
+  "tokenStore"
+> {
+  tokenStore: Pick<
+    UserTokenStore,
+    | "openProjectOAuth"
+    | "getUserToken"
+    | "createStateForOAuth"
+    | "getUserIdForOAuthState"
+  >;
 }
 
 /** Create an OpenProject login-start handler with fresh request authorization. */
@@ -105,7 +119,7 @@ export function createOpenProjectLoginStatusHandler(
 ): (
   request: HookshotLoginStatusRequest,
   context: HookshotProbeContext,
-) => Promise<{ result: HookshotLoginStatusResult }> {
+) => Promise<HookshotLoginStatusResponseState> {
   return async (request, context) => {
     const authorization = await authorizeOpenProjectRequest(
       services,
@@ -128,6 +142,37 @@ export function createOpenProjectLoginStatusHandler(
     } catch {
       return { result: "unavailable" };
     }
+  };
+}
+
+/** Wire the shared OpenProject access services and existing OAuth store. */
+export function createOpenProjectLoginHandlers(
+  dependencies: OpenProjectLoginHandlerDependencies,
+): {
+  loginStartHandler: ReturnType<typeof createOpenProjectLoginStartHandler>;
+  loginStatusHandler: ReturnType<typeof createOpenProjectLoginStatusHandler>;
+} {
+  const services = createOpenProjectProbeServices(dependencies);
+  const { tokenStore } = dependencies;
+  const loginServices: OpenProjectLoginHandlerServices = {
+    ...services,
+    getOpenProjectToken: (userId) =>
+      tokenStore.getUserToken("openproject", userId),
+    createOAuthState: (userId) => tokenStore.createStateForOAuth(userId),
+    getAuthUrl: async (state) => {
+      const oauth = tokenStore.openProjectOAuth;
+      if (!oauth) {
+        throw new Error("OpenProject OAuth is not configured");
+      }
+      return oauth.getAuthUrl(state);
+    },
+    discardOAuthState: (state) => {
+      tokenStore.getUserIdForOAuthState(state);
+    },
+  };
+  return {
+    loginStartHandler: createOpenProjectLoginStartHandler(loginServices),
+    loginStatusHandler: createOpenProjectLoginStatusHandler(loginServices),
   };
 }
 
