@@ -32,3 +32,20 @@ The module artifact will be published at:
 ```text
 public/modules/openproject/element-web/index.js
 ```
+
+## Configure for account connection
+
+To show **Connect my account** on active OpenProject anchor cards, add the
+selected bot and the trusted OpenProject origin to Element Web's configuration
+under `org.matrix.matrix-hookshot`:
+
+```json
+{
+  "org.matrix.matrix-hookshot": {
+    "integrationBots": {
+      "openproject": "@hookshot:example.org"
+    },
+    "openProjectBaseUrl": "https://projects.example.org"
+  }
+}
+```

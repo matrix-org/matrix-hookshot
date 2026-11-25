@@ -37,6 +37,7 @@ openProject:
     redirectUri: https://example.com/oauth/
 ```
 
+
 ### Timeline commands
 
 Use the connection's configured command prefix for timeline commands. The
@@ -66,6 +67,23 @@ Configure Redis to preserve anchors across restarts, for example:
 ```yaml
 cache:
   redisUri: redis://localhost:6379
+```
+
+### Account connection
+
+The OpenProject Element Web module can let a user link accounts from an active
+timeline anchor. Configure the selected OpenProject bot and the matching
+OpenProject origin in Element Web's config (typically `config.json`):
+
+```json
+{
+  "org.matrix.matrix-hookshot": {
+    "integrationBots": {
+      "openproject": "@hookshot:example.org"
+    },
+    "openProjectBaseUrl": "https://your-open-project.com"
+  }
+}
 ```
 
 ### Completion status and closing work packages

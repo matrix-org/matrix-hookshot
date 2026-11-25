@@ -87,3 +87,7 @@ You can log in to OpenProject via OAuth. Authentication is required when trying 
 - If all goes well, you will now be connected.
 
 You may also authenticate via a widget, if you have [configured widgets](../advanced/widgets.md)
+
+When the OpenProject Element Web module is installed and configured, you can
+connect from an active work package card by choosing **Connect my account**.
+See the [OpenProject setup guide](../setup/openproject.md) for the required configuration.
