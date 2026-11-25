@@ -13,6 +13,10 @@ import type {
   OpenProjectActivityContent,
 } from "../models/OpenProjectMatrixEventContent";
 import {
+  HOOKSHOT_LOGIN_URL_MAX_LENGTH,
+  OPENPROJECT_INTEGRATION_ID,
+} from "../utils/config";
+import {
   isMatrixEventId,
   isMatrixRoomId,
   isMatrixUserId,
@@ -26,14 +30,14 @@ import type {
 
 const PROBE_TIMEOUT_MS = 10_000;
 
-export const OPENPROJECT_INTEGRATION_ID = "openproject";
-export const OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE =
+export { OPENPROJECT_INTEGRATION_ID } from "../utils/config";
+export const OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH = 255;
+export const HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe";
-export const OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
+export const HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe_response";
 export const HOOKSHOT_COMMAND_EVENT_TYPE = "org.matrix.matrix-hookshot.command";
 export const HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION = 1;
-export const OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH = 255;
 
 export type OpenProjectProbeResult =
   | "ok"
@@ -56,6 +60,38 @@ export interface OpenProjectProbeResponse {
   result: OpenProjectProbeResult;
   connection?: "connected" | "not_connected";
   actions?: OpenProjectCapabilityAction[];
+  login?: OpenProjectLoginCapability;
+}
+
+/** Login permission advertised by a fresh disconnected capability probe. */
+export type OpenProjectLoginCapability =
+  | "available"
+  | "not_authorized"
+  | "unavailable";
+
+/** Strict version 1 response contract for an OpenProject login-start request. */
+export type OpenProjectLoginStartResponse =
+  | (OpenProjectLoginStartResponseBase & {
+      result: "ready";
+      auth_url: string;
+    })
+  | (OpenProjectLoginStartResponseBase & {
+      result: "already_connected" | "not_authorized" | "unavailable";
+    });
+
+/** Shared correlation fields in a version 1 login-start response. */
+export interface OpenProjectLoginStartResponseBase {
+  v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
+  request_id: string;
+  integration_id: typeof OPENPROJECT_INTEGRATION_ID;
+}
+
+/** Strict version 1 response contract for an OpenProject login-status request. */
+export interface OpenProjectLoginStatusResponse {
+  v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
+  request_id: string;
+  integration_id: typeof OPENPROJECT_INTEGRATION_ID;
+  result: "connected" | "not_connected" | "unavailable";
 }
 
 export interface OpenProjectCapabilityAction {
@@ -215,6 +251,7 @@ export function isOpenProjectProbeResponse(
           "result",
           "connection",
           "actions",
+          "login",
         ].includes(key),
     )
   ) {
@@ -231,7 +268,11 @@ export function isOpenProjectProbeResponse(
       value.result === "unavailable") &&
     (value.connection === undefined ||
       value.connection === "connected" ||
-      value.connection === "not_connected")
+      value.connection === "not_connected") &&
+    (value.login === undefined ||
+      value.login === "available" ||
+      value.login === "not_authorized" ||
+      value.login === "unavailable")
   ) {
     if (value.actions !== undefined) {
       if (
@@ -249,7 +290,10 @@ export function isOpenProjectProbeResponse(
       }
     }
     if (value.result === "ok") {
-      return value.connection === undefined || value.connection === "connected";
+      return (
+        (value.connection === undefined || value.connection === "connected") &&
+        value.login === undefined
+      );
     }
     if (value.result === "not_connected") {
       return (
@@ -258,9 +302,74 @@ export function isOpenProjectProbeResponse(
         value.actions === undefined
       );
     }
-    return value.connection === undefined && value.actions === undefined;
+    return (
+      value.connection === undefined &&
+      value.actions === undefined &&
+      value.login === undefined
+    );
   }
   return false;
+}
+
+/** Validates a version 1 login-start response, including its result-specific fields. */
+export function isOpenProjectLoginStartResponse(
+  value: unknown,
+): value is OpenProjectLoginStartResponse {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some(
+      (key) =>
+        !["v", "request_id", "integration_id", "result", "auth_url"].includes(
+          key,
+        ),
+    ) ||
+    !isLoginResponseBase(value)
+  ) {
+    return false;
+  }
+
+  if (value.result === "ready") {
+    return (
+      typeof value.auth_url === "string" &&
+      value.auth_url.length > 0 &&
+      value.auth_url.length <= HOOKSHOT_LOGIN_URL_MAX_LENGTH
+    );
+  }
+  return (
+    (value.result === "already_connected" ||
+      value.result === "not_authorized" ||
+      value.result === "unavailable") &&
+    !Object.prototype.hasOwnProperty.call(value, "auth_url")
+  );
+}
+
+/** Validates a version 1 login-status response with no unexpected fields. */
+export function isOpenProjectLoginStatusResponse(
+  value: unknown,
+): value is OpenProjectLoginStatusResponse {
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) =>
+      ["v", "request_id", "integration_id", "result"].includes(key),
+    ) &&
+    isLoginResponseBase(value) &&
+    (value.result === "connected" ||
+      value.result === "not_connected" ||
+      value.result === "unavailable")
+  );
+}
+
+function isLoginResponseBase(
+  value: JsonRecord,
+): value is JsonRecord & OpenProjectLoginStartResponseBase {
+  return (
+    value.v === HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
+    typeof value.request_id === "string" &&
+    value.request_id.length > 0 &&
+    value.request_id.length <= 255 &&
+    !/[\p{Cc}\p{White_Space}]/u.test(value.request_id) &&
+    value.integration_id === OPENPROJECT_INTEGRATION_ID
+  );
 }
 
 function isOpenProjectCapabilityAction(
@@ -300,27 +409,6 @@ function isOpenProjectCapabilityAction(
     ((value.id === "assign_self" && command[2] === "assign") ||
       (value.id === "mark_done" && command[2] === "close"))
   );
-}
-
-export function getOpenProjectCapabilityBot(
-  config: unknown,
-): string | undefined {
-  if (!isRecord(config)) {
-    return undefined;
-  }
-
-  const hookshotConfig = config["org.matrix.matrix-hookshot"];
-  if (!isRecord(hookshotConfig)) {
-    return undefined;
-  }
-
-  const integrationBots = hookshotConfig.integrationBots;
-  if (!isRecord(integrationBots)) {
-    return undefined;
-  }
-
-  const botUserId = integrationBots[OPENPROJECT_INTEGRATION_ID];
-  return isMatrixUserId(botUserId) ? botUserId : undefined;
 }
 
 export function isOpenProjectAnchorForBot(
@@ -441,7 +529,7 @@ export class OpenProjectCapabilityClient {
         .sendMessage({
           recipientUserId: anchor.recipientUserId,
           recipientDeviceId: "*",
-          type: OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
+          type: HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
           content: {
             v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
             request_id: requestId,
@@ -527,15 +615,14 @@ export class OpenProjectCapabilityClient {
       }
 
       unsubscribeMessage = this.toDeviceClient.onMessage(
-        OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+        HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
         (message) => {
           if (!this.profile.isCurrent(identity)) {
             finish(new Error("Matrix account or device changed"));
             return;
           }
           if (
-            message.type !==
-              OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE ||
+            message.type !== HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE ||
             message.sender !== anchor.recipientUserId ||
             !isOpenProjectProbeResponse(
               message.content,

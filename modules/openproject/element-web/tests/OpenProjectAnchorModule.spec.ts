@@ -20,7 +20,7 @@ import type {
   OpenProjectCapabilityAction,
   OpenProjectProbeResponse,
 } from "../src/capabilities/OpenProjectCapabilityClient";
-import { OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE } from "../src/capabilities/OpenProjectCapabilityClient";
+import { HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE } from "../src/capabilities/OpenProjectCapabilityClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
@@ -197,8 +197,8 @@ describe("OpenProject marked anchor path", () => {
       },
     });
     const requestId = toDevice.sentMessages[0].content.request_id as string;
-    toDevice.deliver(OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
-      type: OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+    toDevice.deliver(HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
+      type: HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
       sender: botUserId,
       content: {
         v: 1,
@@ -281,8 +281,8 @@ describe("OpenProject marked anchor path", () => {
 
     expect(markup()).toContain("Checking OpenProject connection...");
     const requestId = toDevice.sentMessages[0].content.request_id as string;
-    toDevice.deliver(OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
-      type: OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+    toDevice.deliver(HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
+      type: HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
       sender: botUserId,
       content: {
         v: 1,

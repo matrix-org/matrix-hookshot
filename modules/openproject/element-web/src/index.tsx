@@ -11,7 +11,6 @@ import type {
   Watchable,
 } from "@element-hq/element-web-module-api";
 import {
-  getOpenProjectCapabilityBot,
   isOpenProjectAnchorForBot,
   isOpenProjectActivityContent,
   isOpenProjectContent,
@@ -20,6 +19,7 @@ import {
   OpenProjectCapabilityClient,
   isOpenProjectCommandRequest,
 } from "./capabilities/OpenProjectCapabilityClient";
+import { getOpenProjectCapabilityBot } from "./utils/config";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 import { OpenProjectActivityRenderer } from "./OpenProjectActivityRenderer";
 import {

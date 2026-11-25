@@ -1,17 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  getOpenProjectCapabilityBot,
   isOpenProjectAnchorContent,
   isOpenProjectAnchorForBot,
   isOpenProjectInactiveAnchorContent,
   isOpenProjectProbeResponse,
+  isOpenProjectLoginStartResponse,
+  isOpenProjectLoginStatusResponse,
   isOpenProjectActivityContent,
-  OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
-  OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
+  HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
   OpenProjectCapabilityClient,
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
 } from "../src/capabilities/OpenProjectCapabilityClient";
+import {
+  getOpenProjectBaseUrl,
+  getOpenProjectCapabilityBot,
+  isTrustedOpenProjectAuthorizationUrl,
+} from "../src/utils/config";
 import {
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
@@ -62,9 +68,9 @@ function deliverResponse(
   requestId: string,
   sender = botUserId,
   content: unknown = createResponse(requestId),
-  type = OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+  type = HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
 ): void {
-  toDevice.deliver(OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
+  toDevice.deliver(HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
     type,
     sender,
     content,
@@ -242,6 +248,232 @@ describe("OpenProjectCapabilityClient", () => {
     ).toBe(false);
   });
 
+  it("accepts login capability only on not-connected probe responses", () => {
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse("request-1", "not_connected"),
+        login: "available",
+      }),
+    ).toBe(true);
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse("request-1", "not_connected"),
+        login: "not_authorized",
+      }),
+    ).toBe(true);
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse("request-1", "not_connected"),
+        login: "unavailable",
+      }),
+    ).toBe(true);
+    expect(
+      isOpenProjectProbeResponse(createResponse("request-1", "not_connected")),
+    ).toBe(true);
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse("request-1"),
+        login: "available",
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse("request-1", "not_authorized"),
+        login: "available",
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse("request-1", "not_connected"),
+        login: "unknown",
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse("request-1", "not_connected"),
+        unexpected: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("validates strict login-start and status response variants", () => {
+    const responseBase = {
+      v: 1,
+      request_id: "request-1",
+      integration_id: "openproject",
+    };
+    expect(
+      isOpenProjectLoginStartResponse({
+        ...responseBase,
+        result: "ready",
+        auth_url: "https://projects.example.org/oauth/authorize?state=secret",
+      }),
+    ).toBe(true);
+    for (const result of [
+      "already_connected",
+      "not_authorized",
+      "unavailable",
+    ] as const) {
+      expect(isOpenProjectLoginStartResponse({ ...responseBase, result })).toBe(
+        true,
+      );
+      expect(
+        isOpenProjectLoginStartResponse({
+          ...responseBase,
+          result,
+          auth_url: undefined,
+        }),
+      ).toBe(false);
+    }
+    expect(
+      isOpenProjectLoginStartResponse({
+        ...responseBase,
+        result: "ready",
+        auth_url: "",
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectLoginStartResponse({
+        ...responseBase,
+        result: "ready",
+        auth_url: `https://projects.example.org/${"a".repeat(4096)}`,
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectLoginStartResponse({
+        ...responseBase,
+        result: "ready",
+        auth_url: "https://projects.example.org/oauth/authorize",
+        extra: true,
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectLoginStatusResponse({
+        ...responseBase,
+        result: "connected",
+      }),
+    ).toBe(true);
+    expect(
+      isOpenProjectLoginStatusResponse({
+        ...responseBase,
+        result: "not_connected",
+      }),
+    ).toBe(true);
+    expect(
+      isOpenProjectLoginStatusResponse({
+        ...responseBase,
+        result: "unavailable",
+      }),
+    ).toBe(true);
+    expect(
+      isOpenProjectLoginStatusResponse({ ...responseBase, result: "ready" }),
+    ).toBe(false);
+    expect(
+      isOpenProjectLoginStatusResponse({
+        ...responseBase,
+        result: "connected",
+        auth_url: "https://projects.example.org/oauth/authorize",
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectLoginStatusResponse({
+        ...responseBase,
+        request_id: " ",
+        result: "connected",
+      }),
+    ).toBe(false);
+  });
+
+  it("validates the configured base and trusted OAuth endpoint independently", () => {
+    const configure = (openProjectBaseUrl: unknown): unknown => ({
+      "org.matrix.matrix-hookshot": { openProjectBaseUrl },
+    });
+    expect(
+      getOpenProjectBaseUrl(configure("https://Projects.Example.org:443/root/"))
+        ?.href,
+    ).toBe("https://projects.example.org/root/");
+    expect(
+      getOpenProjectBaseUrl(configure("http://localhost:3000/"))?.origin,
+    ).toBe("http://localhost:3000");
+    expect(
+      getOpenProjectBaseUrl(configure("http://127.0.0.1:3000/")),
+    ).toBeInstanceOf(URL);
+    expect(
+      getOpenProjectBaseUrl(configure("http://[::1]:3000/")),
+    ).toBeInstanceOf(URL);
+    for (const invalid of [
+      "http://projects.example.org",
+      "https://user:password@projects.example.org",
+      "https://@projects.example.org",
+      "https://projects.example.org?query=1",
+      "https://projects.example.org#fragment",
+      "https://projects.example.org?",
+      "https://projects.example.org#",
+      "http://192.168.1.10",
+      "not a URL",
+    ]) {
+      expect(
+        getOpenProjectBaseUrl(configure(invalid)),
+        invalid,
+      ).toBeUndefined();
+    }
+    expect(
+      getOpenProjectBaseUrl({
+        hookshot: { openProjectBaseUrl: "https://projects.example.org" },
+      }),
+    ).toBeUndefined();
+
+    const trustedBase = getOpenProjectBaseUrl(
+      configure("https://Projects.Example.org:443/project/"),
+    );
+    expect(
+      isTrustedOpenProjectAuthorizationUrl(
+        "https://projects.example.org/oauth/authorize?state=x&client_id=y",
+        trustedBase,
+      ),
+    ).toBe(true);
+    expect(
+      isTrustedOpenProjectAuthorizationUrl(
+        "https://PROJECTS.example.org:443/oauth/authorize?state=x",
+        trustedBase,
+      ),
+    ).toBe(true);
+    expect(
+      isTrustedOpenProjectAuthorizationUrl(
+        "https://projects.example.org/oauth/../oauth/authorize?state=x",
+        trustedBase,
+      ),
+    ).toBe(true);
+    for (const invalid of [
+      "https://projects.example.org/oauth/authorize/extra",
+      "https://projects.example.org/elsewhere",
+      "https://attacker.example.org/oauth/authorize",
+      "https://user@projects.example.org/oauth/authorize",
+      "https://@projects.example.org/oauth/authorize",
+      "https://projects.example.org/oauth/authorize#fragment",
+      "https://projects.example.org/oauth/authorize#",
+      "http://projects.example.org/oauth/authorize",
+      "not a URL",
+    ]) {
+      expect(
+        isTrustedOpenProjectAuthorizationUrl(invalid, trustedBase),
+        invalid,
+      ).toBe(false);
+    }
+    expect(
+      isTrustedOpenProjectAuthorizationUrl(
+        "http://[::1]:3000/oauth/authorize?state=x",
+        getOpenProjectBaseUrl(configure("http://[::1]:3000")),
+      ),
+    ).toBe(true);
+    expect(
+      isTrustedOpenProjectAuthorizationUrl(
+        "https://projects.example.org/oauth/authorize",
+        undefined,
+      ),
+    ).toBe(false);
+  });
+
   it("subscribes before sending the version 1 probe to the wildcard device", async () => {
     const toDevice = new MockToDeviceApi();
     const profile = new MockProfile();
@@ -250,14 +482,14 @@ describe("OpenProjectCapabilityClient", () => {
 
     expect(toDevice.calls.slice(0, 2)).toEqual(["subscribe", "send"]);
     expect(toDevice.onMessage).toHaveBeenCalledWith(
-      OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
       expect.any(Function),
     );
     expect(toDevice.sentMessages).toEqual([
       {
         recipientUserId: botUserId,
         recipientDeviceId: "*",
-        type: OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
+        type: HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
         content: {
           v: 1,
           request_id: expect.any(String),
@@ -326,7 +558,7 @@ describe("OpenProjectCapabilityClient", () => {
       requestId,
       botUserId,
       createResponse(requestId),
-      OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
+      HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
     );
 
     expect(toDevice.listenerCount).toBe(1);
