@@ -2,6 +2,14 @@ export const HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe";
 export const HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe_response";
+export const HOOKSHOT_LOGIN_START_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.start";
+export const HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.start_response";
+export const HOOKSHOT_LOGIN_STATUS_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.status";
+export const HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.status_response";
 
 export const HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION = 1;
 
@@ -15,6 +23,17 @@ export type HookshotProbeResult =
   | "not_authorized"
   | "unavailable";
 
+export type HookshotLoginStartResult =
+  | "ready"
+  | "already_connected"
+  | "not_authorized"
+  | "unavailable";
+
+export type HookshotLoginStatusResult =
+  | "connected"
+  | "not_connected"
+  | "unavailable";
+
 export interface HookshotCapabilitiesProbeRequest {
   v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
   request_id: string;
@@ -22,6 +41,46 @@ export interface HookshotCapabilitiesProbeRequest {
   integration_id: HookshotIntegrationId;
   room_id: string;
   anchor_event_id: string;
+}
+
+export interface HookshotLoginStartRequest {
+  v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
+  request_id: string;
+  requesting_device_id: string;
+  integration_id: HookshotIntegrationId;
+  room_id: string;
+  anchor_event_id: string;
+}
+
+export interface HookshotLoginStartResponseBase {
+  v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
+  request_id: string;
+  integration_id: HookshotIntegrationId;
+}
+
+export type HookshotLoginStartResponse =
+  | (HookshotLoginStartResponseBase & {
+      result: "ready";
+      auth_url: string;
+    })
+  | (HookshotLoginStartResponseBase & {
+      result: Exclude<HookshotLoginStartResult, "ready">;
+    });
+
+export interface HookshotLoginStatusRequest {
+  v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
+  request_id: string;
+  requesting_device_id: string;
+  integration_id: HookshotIntegrationId;
+  room_id: string;
+  anchor_event_id: string;
+}
+
+export interface HookshotLoginStatusResponse {
+  v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
+  request_id: string;
+  integration_id: HookshotIntegrationId;
+  result: HookshotLoginStatusResult;
 }
 
 export interface HookshotCapabilitiesProbeResponse {
@@ -48,16 +107,8 @@ const REQUEST_KEYS = [
   "anchor_event_id",
 ] as const;
 
-const RESPONSE_KEYS = [
-  "v",
-  "request_id",
-  "integration_id",
-  "result",
-  "connection",
-  "actions",
-] as const;
-
-const ACTION_KEYS = ["id", "label", "command"] as const;
+const LOGIN_START_REQUEST_KEYS = REQUEST_KEYS;
+const LOGIN_STATUS_REQUEST_KEYS = REQUEST_KEYS;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -123,87 +174,31 @@ export function isHookshotCapabilitiesProbeRequest(
   );
 }
 
-export function isHookshotCapabilitiesProbeResponse(
+export function isHookshotLoginStartRequest(
   value: unknown,
-): value is HookshotCapabilitiesProbeResponse {
-  if (!isRecord(value) || !hasOnlyKeys(value, RESPONSE_KEYS)) {
-    return false;
-  }
-
-  const connection = value.connection;
-  if (
-    value.v !== HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION ||
-    !isNonEmptyString(value.request_id) ||
-    !isIntegrationId(value.integration_id) ||
-    !(
-      value.result === "ok" ||
-      value.result === "not_connected" ||
-      value.result === "not_authorized" ||
-      value.result === "unavailable"
-    ) ||
-    !(
-      connection === undefined ||
-      connection === "connected" ||
-      connection === "not_connected"
-    )
-  ) {
-    return false;
-  }
-
-  if (value.actions !== undefined) {
-    if (
-      value.result !== "ok" ||
-      connection !== "connected" ||
-      !Array.isArray(value.actions) ||
-      value.actions.length > 16 ||
-      !value.actions.every(isHookshotCapabilityAction)
-    ) {
-      return false;
-    }
-    const ids = value.actions.map((action) => action.id);
-    if (new Set(ids).size !== ids.length) {
-      return false;
-    }
-  }
-
-  if (value.result === "ok") {
-    return connection === undefined || connection === "connected";
-  }
-  if (value.result === "not_connected") {
-    return (
-      (connection === undefined || connection === "not_connected") &&
-      value.actions === undefined
-    );
-  }
-  return connection === undefined && value.actions === undefined;
+): value is HookshotLoginStartRequest {
+  return isLoginContextRequest(value, LOGIN_START_REQUEST_KEYS);
 }
 
-function isHookshotCapabilityAction(
+export function isHookshotLoginStatusRequest(
   value: unknown,
-): value is HookshotCapabilityAction {
+): value is HookshotLoginStatusRequest {
+  return isLoginContextRequest(value, LOGIN_STATUS_REQUEST_KEYS);
+}
+
+function isLoginContextRequest(
+  value: unknown,
+  keys: readonly string[],
+): value is HookshotLoginStartRequest | HookshotLoginStatusRequest {
   return (
     isRecord(value) &&
-    hasOnlyKeys(value, ACTION_KEYS) &&
-    isCapabilityActionId(value.id) &&
-    isBoundedText(value.label, 100) &&
-    isBoundedText(value.command, 512)
-  );
-}
-
-function isCapabilityActionId(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length <= 64 &&
-    /^[a-z][a-z0-9_-]*$/u.test(value)
-  );
-}
-
-function isBoundedText(value: unknown, maxLength: number): value is string {
-  return (
-    typeof value === "string" &&
-    value.trim().length > 0 &&
-    value.length <= maxLength &&
-    !/[\p{Cc}]/u.test(value)
+    hasOnlyKeys(value, keys) &&
+    value.v === HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
+    isNonEmptyString(value.request_id) &&
+    isTargetDeviceId(value.requesting_device_id) &&
+    isIntegrationId(value.integration_id) &&
+    isMatrixRoomId(value.room_id) &&
+    isMatrixEventId(value.anchor_event_id)
   );
 }
 

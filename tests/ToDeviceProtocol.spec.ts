@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
+  isHookshotLoginStartRequest,
+  isHookshotLoginStatusRequest,
   isHookshotCapabilitiesProbeRequest,
-  isHookshotCapabilitiesProbeResponse,
   isVersionedHookshotAnchorEventContent,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
 } from "../src/ToDeviceProtocol";
+import {
+  isHookshotCapabilitiesProbeResponse,
+  isHookshotLoginStartResponse,
+  isHookshotLoginStatusResponse,
+} from "./utils/ToDeviceProtocol";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
@@ -27,7 +33,204 @@ const validResponse = {
   connection: "connected",
 };
 
+const validLoginRequest = {
+  v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+  request_id: "2d4e9b5e-09d2-4a9f-881b-8d924fc83c2d",
+  requesting_device_id: "ELEMENTDEVICE",
+  integration_id: "openproject",
+  room_id: "!room:example.org",
+  anchor_event_id: "$anchor",
+};
+
+const validLoginResponseBase = {
+  v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+  request_id: validLoginRequest.request_id,
+  integration_id: "openproject",
+};
+
 describe("Hookshot Step 0 to-device protocol", () => {
+  describe("login-start protocol", () => {
+    it.each(["openproject", "github", "custom_2"])(
+      "accepts a valid request for integration %s",
+      (integrationId) => {
+        expect(
+          isHookshotLoginStartRequest({
+            ...validLoginRequest,
+            integration_id: integrationId,
+          }),
+        ).toBe(true);
+      },
+    );
+
+    it("accepts each exact response variant", () => {
+      expect(
+        isHookshotLoginStartResponse({
+          ...validLoginResponseBase,
+          result: "ready",
+          auth_url: "https://openproject.example.org/oauth/authorize?state=abc",
+        }),
+      ).toBe(true);
+      for (const result of [
+        "already_connected",
+        "not_authorized",
+        "unavailable",
+      ]) {
+        expect(
+          isHookshotLoginStartResponse({
+            ...validLoginResponseBase,
+            result,
+          }),
+        ).toBe(true);
+      }
+    });
+
+    it("rejects unsupported versions, malformed IDs, and wildcard devices", () => {
+      expect(isHookshotLoginStartRequest({ ...validLoginRequest, v: 2 })).toBe(
+        false,
+      );
+      expect(
+        isHookshotLoginStartRequest({
+          ...validLoginRequest,
+          requesting_device_id: "*",
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStartRequest({ ...validLoginRequest, room_id: "room" }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStartRequest({
+          ...validLoginRequest,
+          anchor_event_id: "anchor",
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStartRequest({
+          ...validLoginRequest,
+          integration_id: "OpenProject",
+        }),
+      ).toBe(false);
+    });
+
+    it("rejects unexpected or forbidden request fields and oversized values", () => {
+      for (const extra of [
+        { user_id: "@alice:example.org" },
+        { access_token: "secret" },
+        { token: "secret" },
+        { auth_url: "https://example.org" },
+        { work_package_id: 123 },
+        { unexpected: true },
+      ]) {
+        expect(
+          isHookshotLoginStartRequest({ ...validLoginRequest, ...extra }),
+        ).toBe(false);
+      }
+      expect(
+        isHookshotLoginStartRequest({
+          ...validLoginRequest,
+          request_id: "r".repeat(256),
+        }),
+      ).toBe(false);
+    });
+
+    it("requires a bounded absolute HTTP(S) URL only for ready", () => {
+      expect(
+        isHookshotLoginStartResponse({
+          ...validLoginResponseBase,
+          result: "ready",
+          auth_url: "not-a-url",
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStartResponse({
+          ...validLoginResponseBase,
+          result: "ready",
+          auth_url: "javascript:alert(1)",
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStartResponse({
+          ...validLoginResponseBase,
+          result: "ready",
+          auth_url: `https://example.org/${"a".repeat(2048)}`,
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStartResponse({
+          ...validLoginResponseBase,
+          result: "unavailable",
+          auth_url: "https://example.org",
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStartResponse({
+          ...validLoginResponseBase,
+          result: "ready",
+        }),
+      ).toBe(false);
+    });
+  });
+
+  describe("connection-status protocol", () => {
+    it.each(["openproject", "github"])(
+      "accepts a valid request for integration %s",
+      (integrationId) => {
+        expect(
+          isHookshotLoginStatusRequest({
+            ...validLoginRequest,
+            integration_id: integrationId,
+          }),
+        ).toBe(true);
+      },
+    );
+
+    it.each(["connected", "not_connected", "unavailable"])(
+      "accepts the %s response",
+      (result) => {
+        expect(
+          isHookshotLoginStatusResponse({
+            ...validLoginResponseBase,
+            result,
+          }),
+        ).toBe(true);
+      },
+    );
+
+    it("rejects unsupported versions and forbidden or extra fields", () => {
+      expect(isHookshotLoginStatusRequest({ ...validLoginRequest, v: 2 })).toBe(
+        false,
+      );
+      expect(
+        isHookshotLoginStatusRequest({
+          ...validLoginRequest,
+          requesting_device_id: "*",
+        }),
+      ).toBe(false);
+      for (const extra of [
+        { user_id: "@alice:example.org" },
+        { access_token: "secret" },
+        { oauth_state: "secret" },
+        { unexpected: true },
+      ]) {
+        expect(
+          isHookshotLoginStatusRequest({ ...validLoginRequest, ...extra }),
+        ).toBe(false);
+      }
+      expect(
+        isHookshotLoginStatusRequest({
+          ...validLoginRequest,
+          anchor_event_id: "x".repeat(256),
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotLoginStatusResponse({
+          ...validLoginResponseBase,
+          result: "connected",
+          token: "secret",
+        }),
+      ).toBe(false);
+    });
+  });
+
   describe("probe requests", () => {
     it("accepts the complete request shape", () => {
       expect(isHookshotCapabilitiesProbeRequest(validRequest)).toBe(true);
