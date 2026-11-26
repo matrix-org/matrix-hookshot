@@ -1,0 +1,1 @@
+Fix GitHub ghost users failing on current Synapse versions, which broke issue and discussion rooms.

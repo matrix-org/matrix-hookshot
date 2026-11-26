@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { IntentMock, MatrixClientMock } from "./utils/IntentMock";
-import { ensureUserIsInRoom } from "../src/IntentUtils";
+import { ensureUserIsInRoom, getIntentForUser } from "../src/IntentUtils";
+import { AppserviceMock } from "./utils/AppserviceMock";
 import { MatrixError } from "matrix-bot-sdk";
 
 const ROOM_ID = "!foo:bar";
@@ -82,6 +83,41 @@ describe("IntentUtils", () => {
         `Could not ensure that ${SENDER_USER_ID} is in ${ROOM_ID}`,
       );
       expect(hasInvited).toBe(false);
+    });
+  });
+
+  describe("getIntentForUser", () => {
+    it("registers the user before using its client", async () => {
+      const as = AppserviceMock.create();
+      const intent = as.getIntentForUserId("@_github_alice:example.com");
+      let registered = false;
+      intent.ensureRegistered = async () => {
+        registered = true;
+      };
+      const getCapabilities = intent.underlyingClient.getCapabilities.bind(
+        intent.underlyingClient,
+      );
+      // Like Synapse: an appservice user can't make requests before it is registered.
+      intent.underlyingClient.getCapabilities = async () => {
+        if (!registered) {
+          throw new MatrixError(
+            {
+              errcode: "M_FORBIDDEN",
+              error: "Application service has not registered this user",
+            },
+            403,
+            {},
+          );
+        }
+        return getCapabilities();
+      };
+      intent.underlyingClient.getUserProfile = async () => ({
+        displayname: "alice",
+      });
+
+      const result = await getIntentForUser({ login: "alice" }, as, "_github_");
+      expect(result).toBe(intent);
+      expect(registered).toBe(true);
     });
   });
 });

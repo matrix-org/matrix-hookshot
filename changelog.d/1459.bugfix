@@ -1,0 +1,1 @@
+Fix GitHub issue rooms (`#github_<owner>_<repo>_<issue>`) being created without a working connection. Thanks to @lampholder!
