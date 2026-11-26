@@ -6,6 +6,8 @@ import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+  type HookshotCapabilitiesProbeRequest,
+  type HookshotCapabilitiesProbeResponse,
 } from "../src/ToDeviceProtocol";
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
 
@@ -64,6 +66,9 @@ describe("Appservice to-device delivery", () => {
     "routes a probe through the service bot and replies only to the requesting device",
     async () => {
       const user = testEnv.getUser("user");
+
+      // Log in as the same user on a second device to check that it does not
+      // receive a response addressed to the original device.
       const password = createHash("sha256")
         .update("user")
         .update(testEnv.homeserver.containers.synapse.registrationSecret)
@@ -76,6 +81,7 @@ describe("Appservice to-device delivery", () => {
         throw new Error("The second login did not create a Matrix device");
       }
       expect(otherDeviceId).not.toBe(testEnv.homeserver.users[0].deviceId);
+
       const otherDeviceResponses: IToDeviceMessage[] = [];
       const onOtherDeviceMessage = (message: IToDeviceMessage): void => {
         if (message.type === HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE) {
@@ -86,6 +92,7 @@ describe("Appservice to-device delivery", () => {
 
       try {
         await otherDevice.start();
+
         const request = {
           v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
           request_id: "real-appservice-delivery",
@@ -93,8 +100,9 @@ describe("Appservice to-device delivery", () => {
           integration_id: "openproject",
           room_id: "!transport-proof:example.com",
           anchor_event_id: "$transport-proof",
-        };
+        } satisfies HookshotCapabilitiesProbeRequest;
 
+        // Listen before sending so the response cannot arrive before the listener.
         const responsePromise = waitForToDevice(
           user,
           (message) =>
@@ -114,12 +122,14 @@ describe("Appservice to-device delivery", () => {
         });
 
         const response = await responsePromise;
-        expect(response.content).toEqual({
+        const expectedResponse = {
           v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
           request_id: request.request_id,
           integration_id: request.integration_id,
           result: "unavailable",
-        });
+        } satisfies HookshotCapabilitiesProbeResponse;
+        expect(response.content).toEqual(expectedResponse);
+
         // A marker sent after the response confirms the second device has
         // synced past the response before we inspect its received events.
         const barrier = waitForToDevice(
