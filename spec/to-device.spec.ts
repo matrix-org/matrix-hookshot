@@ -126,7 +126,9 @@ describe("Appservice to-device delivery", () => {
           v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
           request_id: request.request_id,
           integration_id: request.integration_id,
-          result: "unavailable",
+          // The synthetic anchor cannot be read, so the authenticated handler
+          // safely rejects it while still proving to-device delivery.
+          result: "not_authorized",
         } satisfies HookshotCapabilitiesProbeResponse;
         expect(response.content).toEqual(expectedResponse);
 
