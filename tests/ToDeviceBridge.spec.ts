@@ -30,7 +30,7 @@ function createBridge(
 }
 
 describe("to-device receiver startup", () => {
-  it("waits for each selected bot once before subscribing", async () => {
+  it("waits for the selected bot before subscribing", async () => {
     const appservice = new FakeAppservice();
     const pendingReadiness = Promise.withResolvers<string>();
     appservice.ensureToDeviceReady.mockImplementationOnce(
@@ -55,8 +55,8 @@ describe("to-device receiver startup", () => {
 
     expect(
       appservice.getIntentForUserId.mock.calls.map(([userId]) => userId),
-    ).toEqual(["@openproject:example.org", "@hookshot:example.org"]);
-    expect(appservice.ensureToDeviceReady).toHaveBeenCalledTimes(2);
+    ).toEqual(["@openproject:example.org"]);
+    expect(appservice.ensureToDeviceReady).toHaveBeenCalledOnce();
     expect(appservice.listenerCount("to-device")).toBe(1);
   });
 
@@ -65,7 +65,7 @@ describe("to-device receiver startup", () => {
     const sdkError = new Error("device registration failed");
     appservice.ensureToDeviceReady.mockRejectedValueOnce(sdkError);
     const bridge = createBridge(appservice, [
-      { userId: "@hookshot:example.org", services: ["generic"] },
+      { userId: "@hookshot:example.org", services: ["openproject"] },
     ]);
 
     const startupError = await bridge["startToDeviceReceiver"]().catch(
@@ -77,5 +77,25 @@ describe("to-device receiver startup", () => {
     );
     expect((startupError as Error).cause).toBe(sdkError);
     expect(appservice.listenerCount("to-device")).toBe(0);
+  });
+
+  it("selects only the supported integration and prefers the first bot", async () => {
+    const appservice = new FakeAppservice();
+    const bridge = createBridge(appservice, [
+      { userId: "@outbound:example.org", services: ["genericOutbound"] },
+      { userId: "@generic:example.org", services: ["generic"] },
+      { userId: "@openproject:example.org", services: ["openproject"] },
+      {
+        userId: "@default:example.org",
+        services: ["openproject", "generic", "genericOutbound", "unknown"],
+      },
+    ]);
+
+    await bridge["startToDeviceReceiver"]();
+
+    expect(bridge["toDeviceReceiver"]?.["integrationBots"]).toEqual(
+      new Map([["openproject", "@openproject:example.org"]]),
+    );
+    expect(appservice.ensureToDeviceReady).toHaveBeenCalledOnce();
   });
 });

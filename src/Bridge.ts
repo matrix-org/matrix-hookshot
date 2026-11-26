@@ -22,6 +22,10 @@ import { BridgePermissionLevel } from "./config/BridgePermissionLevel";
 import { BridgeWidgetApi } from "./widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
+import {
+  HookshotIntegrationId,
+  isHookshotIntegrationId,
+} from "./ToDeviceProtocol";
 import { GetIssueResponse, GetIssueOpts } from "./gitlab/Types";
 import { GithubInstance } from "./github/GithubInstance";
 import { IBridgeStorageProvider } from "./stores/StorageProvider";
@@ -2191,10 +2195,10 @@ export class Bridge {
    * takes precedence over the default Hookshot bot.
    */
   private async startToDeviceReceiver() {
-    const integrationBots = new Map<string, string>();
+    const integrationBots = new Map<HookshotIntegrationId, string>();
     for (const botUser of this.botUsersManager.botUsers) {
       for (const service of botUser.services) {
-        if (!integrationBots.has(service)) {
+        if (isHookshotIntegrationId(service) && !integrationBots.has(service)) {
           integrationBots.set(service, botUser.userId);
         }
       }

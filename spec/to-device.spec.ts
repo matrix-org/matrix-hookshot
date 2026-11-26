@@ -47,14 +47,14 @@ describe("Appservice to-device delivery", () => {
         toDevice: { receiver: { enabled: true } },
         serviceBots: [
           {
-            localpart: "hookshot_webhooks",
-            prefix: "!webhooks",
-            service: "generic",
+            localpart: "hookshot_openproject",
+            prefix: "!openproject",
+            service: "openproject",
           },
         ],
       },
     });
-    serviceBotMxid = `@hookshot_webhooks:${testEnv.homeserver.domain}`;
+    serviceBotMxid = `@hookshot_openproject:${testEnv.homeserver.domain}`;
     await testEnv.setUp();
   }, E2ESetupTestTimeout);
 
@@ -90,7 +90,7 @@ describe("Appservice to-device delivery", () => {
           v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
           request_id: "real-appservice-delivery",
           requesting_device_id: testEnv.homeserver.users[0].deviceId,
-          integration_id: "generic",
+          integration_id: "openproject",
           room_id: "!transport-proof:example.com",
           anchor_event_id: "$transport-proof",
         };

@@ -1,3 +1,5 @@
+import type { ConnectionType } from "./Connections/type";
+
 export const HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe";
 export const HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
@@ -8,7 +10,14 @@ export const HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION = 1;
 const HOOKSHOT_EVENT_NAMESPACE = "org.matrix.matrix-hookshot";
 const ANCHOR_EVENT_KIND = "anchor";
 
-export type HookshotIntegrationId = string;
+/**
+ * Integrations currently supported by the to-device protocol.
+ * Other {@link ConnectionType} values can be added as they implement it.
+ */
+export const HOOKSHOT_INTEGRATION_IDS = ["openproject"] as const;
+
+/** Identifies the integration that owns an event and selects its bot. */
+export type HookshotIntegrationId = (typeof HOOKSHOT_INTEGRATION_IDS)[number];
 
 export type HookshotProbeResult =
   | "ok"
@@ -72,12 +81,12 @@ function isTargetDeviceId(value: unknown): value is string {
   return isNonEmptyString(value) && value !== "*";
 }
 
-function isIntegrationId(value: unknown): value is HookshotIntegrationId {
+export function isHookshotIntegrationId(
+  value: unknown,
+): value is HookshotIntegrationId {
   return (
     typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= 64 &&
-    /^[a-z][a-z0-9_-]*$/u.test(value)
+    HOOKSHOT_INTEGRATION_IDS.some((id) => id === value)
   );
 }
 
@@ -108,7 +117,7 @@ export function isHookshotCapabilitiesProbeRequest(
     value.v === HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
     isNonEmptyString(value.request_id) &&
     isTargetDeviceId(value.requesting_device_id) &&
-    isIntegrationId(value.integration_id) &&
+    isHookshotIntegrationId(value.integration_id) &&
     isMatrixRoomId(value.room_id) &&
     isMatrixEventId(value.anchor_event_id)
   );
@@ -125,7 +134,7 @@ export function isHookshotCapabilitiesProbeResponse(
   return (
     value.v === HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
     isNonEmptyString(value.request_id) &&
-    isIntegrationId(value.integration_id) &&
+    isHookshotIntegrationId(value.integration_id) &&
     (value.result === "ok" ||
       value.result === "not_connected" ||
       value.result === "not_authorized" ||
@@ -145,7 +154,7 @@ export function isVersionedHookshotAnchorEventContent(
   value: unknown,
   integrationId: HookshotIntegrationId,
 ): boolean {
-  if (!isRecord(value) || !isIntegrationId(integrationId)) {
+  if (!isRecord(value) || !isHookshotIntegrationId(integrationId)) {
     return false;
   }
 

@@ -21,7 +21,7 @@ const request = {
   v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
   request_id: "appservice-transaction",
   requesting_device_id: "ELEMENTDEVICE",
-  integration_id: "generic",
+  integration_id: "openproject",
   room_id: "!room:example.org",
   anchor_event_id: "$anchor",
 };
@@ -65,7 +65,7 @@ describe("real appservice to-device delivery", () => {
       .mockResolvedValue();
     const receiver = new HookshotToDeviceReceiver(
       appservice,
-      new Map([["generic", botUserId]]),
+      new Map([["openproject", botUserId]]),
     );
     receiver.start();
 

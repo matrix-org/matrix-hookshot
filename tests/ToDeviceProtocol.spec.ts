@@ -4,6 +4,8 @@ import {
   isHookshotCapabilitiesProbeResponse,
   isVersionedHookshotAnchorEventContent,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+  HOOKSHOT_INTEGRATION_IDS,
+  type HookshotIntegrationId,
 } from "../src/ToDeviceProtocol";
 
 const validRequest = {
@@ -28,6 +30,24 @@ describe("Hookshot Step 0 to-device protocol", () => {
     it("accepts the complete request shape", () => {
       expect(isHookshotCapabilitiesProbeRequest(validRequest)).toBe(true);
     });
+
+    it.each(HOOKSHOT_INTEGRATION_IDS)(
+      "accepts integration %s",
+      (integrationId) => {
+        expect(
+          isHookshotCapabilitiesProbeRequest({
+            ...validRequest,
+            integration_id: integrationId,
+          }),
+        ).toBe(true);
+        expect(
+          isHookshotCapabilitiesProbeResponse({
+            ...validResponse,
+            integration_id: integrationId,
+          }),
+        ).toBe(true);
+      },
+    );
 
     it.each([
       ["a body-level Matrix user ID", { user_id: "@alice:example.org" }],
@@ -71,17 +91,29 @@ describe("Hookshot Step 0 to-device protocol", () => {
       ).toBe(false);
     });
 
-    it.each(["", "OpenProject", "https://example.org", "open project"])(
-      "rejects an invalid integration ID: %s",
-      (integrationId) => {
-        expect(
-          isHookshotCapabilitiesProbeRequest({
-            ...validRequest,
-            integration_id: integrationId,
-          }),
-        ).toBe(false);
-      },
-    );
+    it.each([
+      "",
+      "OpenProject",
+      "https://example.org",
+      "open project",
+      "unknown",
+      "generic",
+      "genericOutbound",
+      "github",
+    ])("rejects an invalid integration ID: %s", (integrationId) => {
+      expect(
+        isHookshotCapabilitiesProbeRequest({
+          ...validRequest,
+          integration_id: integrationId,
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          integration_id: integrationId,
+        }),
+      ).toBe(false);
+    });
 
     it("rejects an unsupported protocol version", () => {
       expect(
@@ -184,9 +216,12 @@ describe("Hookshot Step 0 to-device protocol", () => {
       ],
       ["an invalid integration ID", {}, "https://example.org"],
     ])("rejects %s", (_description, value, integrationId) => {
-      expect(isVersionedHookshotAnchorEventContent(value, integrationId)).toBe(
-        false,
-      );
+      expect(
+        isVersionedHookshotAnchorEventContent(
+          value,
+          integrationId as HookshotIntegrationId,
+        ),
+      ).toBe(false);
     });
   });
 });
