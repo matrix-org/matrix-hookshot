@@ -37,7 +37,6 @@ openProject:
     redirectUri: https://example.com/oauth/
 ```
 
-
 ### Timeline commands
 
 Use the connection's configured command prefix for timeline commands. The
