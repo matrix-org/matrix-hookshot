@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
   HookshotCapabilitiesProbeRequest,
+  type HookshotIntegrationId,
 } from "../src/ToDeviceProtocol";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
@@ -171,7 +172,7 @@ describe("authenticated Hookshot probe", () => {
 
     await expect(
       handler(
-        { ...request, integration_id: "github" },
+        { ...request, integration_id: "github" as HookshotIntegrationId },
         { sender, recipientBotUserId: botUserId },
       ),
     ).resolves.toEqual({ result: "unavailable" });

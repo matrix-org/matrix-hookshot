@@ -134,34 +134,48 @@ describe("Hookshot to-device receiver", () => {
   });
 
   it("deduplicates by sender, integration, and request ID until the TTL expires", async () => {
-    const appservice = new FakeAppservice();
-    let now = 1000;
-    const receiver = createReceiver(appservice, {
-      deduplicationTtlMs: 100,
-      now: () => now,
-    });
+    vi.useFakeTimers();
+    try {
+      const appservice = new FakeAppservice();
+      const receiver = createReceiver(appservice, {
+        deduplicationTtlMs: 100,
+      });
 
-    await receiver.handleToDeviceEvent(makeEvent());
-    await receiver.handleToDeviceEvent(makeEvent());
-    expect(appservice.sendToDevices).toHaveBeenCalledOnce();
+      await receiver.handleToDeviceEvent(makeEvent());
+      vi.advanceTimersByTime(99);
+      await receiver.handleToDeviceEvent(makeEvent());
+      expect(appservice.sendToDevices).toHaveBeenCalledOnce();
 
-    now = 1100;
-    await receiver.handleToDeviceEvent(makeEvent());
-    expect(appservice.sendToDevices).toHaveBeenCalledTimes(2);
+      vi.advanceTimersByTime(1);
+      await receiver.handleToDeviceEvent(makeEvent());
+      expect(appservice.sendToDevices).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
-  it("bounds the deduplication cache", async () => {
+  it("allows a request again after capacity eviction", async () => {
     const appservice = new FakeAppservice();
     const receiver = createReceiver(appservice, {
-      maxDeduplicationEntries: 1,
+      maxDeduplicationEntries: 2,
     });
 
     await receiver.handleToDeviceEvent(makeEvent(validRequest));
     await receiver.handleToDeviceEvent(
       makeEvent({ ...validRequest, request_id: "request-456" }),
     );
+    await receiver.handleToDeviceEvent(
+      makeEvent({ ...validRequest, request_id: "request-789" }),
+    );
+    await receiver.handleToDeviceEvent(
+      makeEvent({ ...validRequest, request_id: "request-101" }),
+    );
+    await receiver.handleToDeviceEvent(
+      makeEvent({ ...validRequest, request_id: "request-789" }),
+    );
+    expect(appservice.sendToDevices).toHaveBeenCalledTimes(4);
     await receiver.handleToDeviceEvent(makeEvent(validRequest));
 
-    expect(appservice.sendToDevices).toHaveBeenCalledTimes(3);
+    expect(appservice.sendToDevices).toHaveBeenCalledTimes(5);
   });
 });

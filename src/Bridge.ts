@@ -22,6 +22,10 @@ import { BridgePermissionLevel } from "./config/BridgePermissionLevel";
 import { BridgeWidgetApi } from "./widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
+import {
+  HookshotIntegrationId,
+  isHookshotIntegrationId,
+} from "./ToDeviceProtocol";
 import { GetIssueResponse, GetIssueOpts } from "./gitlab/Types";
 import { GithubInstance } from "./github/GithubInstance";
 import { IBridgeStorageProvider } from "./stores/StorageProvider";
@@ -188,7 +192,7 @@ export class Bridge {
 
     await this.botUsersManager.start();
 
-    if (this.config.toDevice.receiver.enabled) {
+    if (this.config.messaging.allowClientIntegration) {
       await this.startToDeviceReceiver();
     }
 
@@ -2200,11 +2204,12 @@ export class Bridge {
    * takes precedence over the default Hookshot bot.
    */
   private async startToDeviceReceiver() {
-    const integrationBots = new Map<string, string>();
+    const integrationBots = new Map<HookshotIntegrationId, string>();
     const services = new Set(
       this.botUsersManager.botUsers.flatMap((botUser) => botUser.services),
     );
     for (const service of services) {
+      if (!isHookshotIntegrationId(service)) continue;
       const botUser = this.botUsersManager.getIntegrationBotForService(service);
       if (botUser) {
         integrationBots.set(service, botUser.userId);
@@ -2215,13 +2220,13 @@ export class Bridge {
         const deviceId = await this.as
           .getIntentForUserId(botUserId)
           .ensureToDeviceReady();
-        log.info(`bot=${botUserId} device=${deviceId} to-device=ready`);
-      } catch {
-        // SDK errors can contain request details, so keep startup errors scoped
-        // to the bot and outcome.
-        log.error(`bot=${botUserId} to-device=failed`);
+        log.info(
+          `To-device receiver is ready for bot ${botUserId} on device ${deviceId}`,
+        );
+      } catch (error) {
         throw new Error(
           `Failed to prepare to-device receiver for ${botUserId}`,
+          { cause: error },
         );
       }
     }

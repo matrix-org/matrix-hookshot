@@ -34,7 +34,7 @@ function createBridge(
 }
 
 describe("to-device receiver startup", () => {
-  it("waits for each selected bot once before subscribing", async () => {
+  it("waits for the selected bot before subscribing", async () => {
     const appservice = new FakeAppservice();
     const pendingReadiness = Promise.withResolvers<string>();
     appservice.ensureToDeviceReady.mockImplementationOnce(
@@ -59,29 +59,68 @@ describe("to-device receiver startup", () => {
 
     expect(
       appservice.getIntentForUserId.mock.calls.map(([userId]) => userId),
-    ).toEqual(["@openproject:example.org", "@hookshot:example.org"]);
-    expect(appservice.ensureToDeviceReady).toHaveBeenCalledTimes(2);
+    ).toEqual(["@openproject:example.org"]);
+    expect(appservice.ensureToDeviceReady).toHaveBeenCalledOnce();
     expect(appservice.listenerCount("to-device")).toBe(1);
   });
 
-  it("fails startup without subscribing or exposing the SDK error", async () => {
+  it("fails startup with the SDK error as its cause without subscribing", async () => {
     const appservice = new FakeAppservice();
-    appservice.ensureToDeviceReady.mockRejectedValueOnce(
-      new Error("secret request details"),
-    );
+    const sdkError = new Error("device registration failed");
+    appservice.ensureToDeviceReady.mockRejectedValueOnce(sdkError);
     const bridge = createBridge(appservice, [
-      { userId: "@hookshot:example.org", services: ["generic"] },
+      { userId: "@hookshot:example.org", services: ["openproject"] },
     ]);
 
     const startupError = await bridge["startToDeviceReceiver"]().catch(
       (error: unknown) => error,
     );
-    expect(startupError).toEqual(
-      new Error(
-        "Failed to prepare to-device receiver for @hookshot:example.org",
-      ),
+    expect(startupError).toBeInstanceOf(Error);
+    expect((startupError as Error).message).toBe(
+      "Failed to prepare to-device receiver for @hookshot:example.org",
     );
-    expect(String(startupError)).not.toContain("secret request details");
+    expect((startupError as Error).cause).toBe(sdkError);
     expect(appservice.listenerCount("to-device")).toBe(0);
+  });
+
+  it("uses the manager-selected bot for an integration", async () => {
+    const appservice = new FakeAppservice();
+    const bridge = createBridge(appservice, [
+      { userId: "@first:example.org", services: ["openproject"] },
+      { userId: "@selected:example.org", services: ["openproject"] },
+    ]);
+    vi.spyOn(
+      bridge["botUsersManager"],
+      "getIntegrationBotForService",
+    ).mockReturnValue(bridge["botUsersManager"].botUsers[1]);
+
+    await bridge["startToDeviceReceiver"]();
+
+    expect(bridge["toDeviceReceiver"]?.["integrationBots"]).toEqual(
+      new Map([["openproject", "@selected:example.org"]]),
+    );
+    expect(appservice.ensureToDeviceReady).toHaveBeenCalledExactlyOnceWith(
+      "@selected:example.org",
+    );
+  });
+
+  it("selects only the supported integration and prefers the first bot", async () => {
+    const appservice = new FakeAppservice();
+    const bridge = createBridge(appservice, [
+      { userId: "@outbound:example.org", services: ["genericOutbound"] },
+      { userId: "@generic:example.org", services: ["generic"] },
+      { userId: "@openproject:example.org", services: ["openproject"] },
+      {
+        userId: "@default:example.org",
+        services: ["openproject", "generic", "genericOutbound", "unknown"],
+      },
+    ]);
+
+    await bridge["startToDeviceReceiver"]();
+
+    expect(bridge["toDeviceReceiver"]?.["integrationBots"]).toEqual(
+      new Map([["openproject", "@openproject:example.org"]]),
+    );
+    expect(appservice.ensureToDeviceReady).toHaveBeenCalledOnce();
   });
 });

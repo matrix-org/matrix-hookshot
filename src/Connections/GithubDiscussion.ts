@@ -10,7 +10,7 @@ import { MessageSenderClient } from "../MatrixSender";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { Discussion } from "@octokit/webhooks-types";
-import emoji from "node-emoji";
+import { emojify } from "node-emoji";
 import markdown from "markdown-it";
 import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../github/GithubInstance";
@@ -118,7 +118,7 @@ export class GitHubDiscussionConnection
       invite,
       preset: "public_chat",
       name: `${discussion.title} (${owner}/${repo})`,
-      topic: emoji.emojify(
+      topic: emojify(
         `Under ${discussion.category.emoji} ${discussion.category.name}`,
       ),
       room_alias_name: `github_disc_${owner.toLowerCase()}_${repo.toLowerCase()}_${discussion.number}`,
