@@ -398,6 +398,7 @@ describe("OpenProject", () => {
             redirectUri: `http://localhost:${webhooksPort}/openproject/oauth`,
           },
         },
+        toDevice: { receiver: { enabled: true } },
         widgets: {
           publicUrl: `http://localhost:${webhooksPort}`,
         },
