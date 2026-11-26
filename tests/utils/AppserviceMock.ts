@@ -29,6 +29,10 @@ export class AppserviceMock {
     return intent;
   }
 
+  public getUserId(localpart: string) {
+    return `@${localpart}:example.com`;
+  }
+
   public isNamespacedUser(userId: string) {
     return userId.startsWith(this.namespace);
   }
