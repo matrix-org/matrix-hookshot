@@ -60,11 +60,10 @@ describe("to-device receiver startup", () => {
     expect(appservice.listenerCount("to-device")).toBe(1);
   });
 
-  it("fails startup without subscribing or exposing the SDK error", async () => {
+  it("fails startup with the SDK error as its cause without subscribing", async () => {
     const appservice = new FakeAppservice();
-    appservice.ensureToDeviceReady.mockRejectedValueOnce(
-      new Error("secret request details"),
-    );
+    const sdkError = new Error("device registration failed");
+    appservice.ensureToDeviceReady.mockRejectedValueOnce(sdkError);
     const bridge = createBridge(appservice, [
       { userId: "@hookshot:example.org", services: ["generic"] },
     ]);
@@ -72,12 +71,11 @@ describe("to-device receiver startup", () => {
     const startupError = await bridge["startToDeviceReceiver"]().catch(
       (error: unknown) => error,
     );
-    expect(startupError).toEqual(
-      new Error(
-        "Failed to prepare to-device receiver for @hookshot:example.org",
-      ),
+    expect(startupError).toBeInstanceOf(Error);
+    expect((startupError as Error).message).toBe(
+      "Failed to prepare to-device receiver for @hookshot:example.org",
     );
-    expect(String(startupError)).not.toContain("secret request details");
+    expect((startupError as Error).cause).toBe(sdkError);
     expect(appservice.listenerCount("to-device")).toBe(0);
   });
 });

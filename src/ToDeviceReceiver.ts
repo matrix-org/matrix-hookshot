@@ -56,9 +56,17 @@ export class HookshotToDeviceReceiver {
   private readonly onToDeviceEvent = (
     event: IAppserviceToDeviceEvent<unknown>,
   ): void => {
-    void this.handleToDeviceEvent(event).catch(() => {
-      // A failed response must not break the appservice event emitter.
-      log.error("Failed to send a Hookshot to-device response");
+    void this.handleToDeviceEvent(event).catch((error) => {
+      // A failed probe must not break the appservice event emitter.
+      const request = event.content;
+      if (isHookshotCapabilitiesProbeRequest(request)) {
+        log.error(
+          `Failed to handle to-device probe ${request.request_id} for integration ${request.integration_id} on bot ${event.to_user_id}`,
+          error,
+        );
+      } else {
+        log.error("Failed to handle a Hookshot to-device event", error);
+      }
     });
   };
 

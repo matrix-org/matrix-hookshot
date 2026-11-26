@@ -2204,13 +2204,13 @@ export class Bridge {
         const deviceId = await this.as
           .getIntentForUserId(botUserId)
           .ensureToDeviceReady();
-        log.info(`bot=${botUserId} device=${deviceId} to-device=ready`);
-      } catch {
-        // SDK errors can contain request details, so keep startup errors scoped
-        // to the bot and outcome.
-        log.error(`bot=${botUserId} to-device=failed`);
+        log.info(
+          `To-device receiver is ready for bot ${botUserId} on device ${deviceId}`,
+        );
+      } catch (error) {
         throw new Error(
           `Failed to prepare to-device receiver for ${botUserId}`,
+          { cause: error },
         );
       }
     }
