@@ -136,9 +136,7 @@ export function isMatrixUserId(value: unknown): value is string {
 }
 
 function isMatrixRoomId(value: unknown): value is string {
-  return (
-    isNonEmptyString(value) && value.startsWith("!") && value.includes(":")
-  );
+  return isNonEmptyString(value) && value.startsWith("!");
 }
 
 function isMatrixEventId(value: unknown): value is string {
