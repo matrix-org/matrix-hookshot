@@ -6,6 +6,7 @@ import {
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
   HOOKSHOT_INTEGRATION_IDS,
   type HookshotIntegrationId,
+  isMatrixUserId,
 } from "../src/ToDeviceProtocol";
 
 const validRequest = {
@@ -26,6 +27,27 @@ const validResponse = {
 };
 
 describe("Hookshot Step 0 to-device protocol", () => {
+  describe("Matrix user ID shape", () => {
+    it.each(["@alice:example.org", "@Alice:example.org:8448", "@alice:[::1]"])(
+      "accepts %s without escaping",
+      (userId) => expect(isMatrixUserId(userId)).toBe(true),
+    );
+
+    it.each([
+      undefined,
+      null,
+      "",
+      "alice:example.org",
+      "@:example.org",
+      "@alice",
+      "@alice:",
+      "@a lice:example.org",
+      "@alice:example .org",
+    ])("rejects malformed ID %s", (userId) =>
+      expect(isMatrixUserId(userId)).toBe(false),
+    );
+  });
+
   describe("probe requests", () => {
     it("accepts the complete request shape", () => {
       expect(isHookshotCapabilitiesProbeRequest(validRequest)).toBe(true);

@@ -1,4 +1,4 @@
-import type { ConnectionType } from "./Connections/type";
+import { MatrixUser } from "matrix-appservice-bridge";
 
 export const HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe";
@@ -64,7 +64,13 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function isMatrixUserId(value: unknown): value is string {
-  return typeof value === "string" && /^@[^:\s]+:[^\s]+$/u.test(value);
+  if (typeof value !== "string" || !value.startsWith("@")) {
+    return false;
+  }
+
+  // MatrixUser parses IDs but does not validate them; do not escape the input.
+  const user = new MatrixUser(value, {}, false);
+  return !!user.localpart && !!user.host && !/\s/u.test(value);
 }
 
 function isMatrixRoomId(value: unknown): value is string {
