@@ -1,5 +1,6 @@
 import { Appservice, type IAppserviceToDeviceEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
+import QuickLRU from "@alloc/quick-lru";
 
 import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
@@ -34,7 +35,6 @@ export type HookshotProbeHandler = (
 export interface HookshotToDeviceReceiverOptions {
   deduplicationTtlMs?: number;
   maxDeduplicationEntries?: number;
-  now?: () => number;
   probeHandler?: HookshotProbeHandler;
 }
 
@@ -46,10 +46,7 @@ export interface HookshotToDeviceReceiverOptions {
  * integration-connection checks. Those belong to the integration dispatcher.
  */
 export class HookshotToDeviceReceiver {
-  private readonly deduplication = new Map<string, number>();
-  private readonly deduplicationTtlMs: number;
-  private readonly maxDeduplicationEntries: number;
-  private readonly now: () => number;
+  private readonly deduplication: QuickLRU<string, void>;
   private readonly probeHandler?: HookshotProbeHandler;
   private started = false;
 
@@ -78,19 +75,22 @@ export class HookshotToDeviceReceiver {
     >,
     options: HookshotToDeviceReceiverOptions = {},
   ) {
-    this.deduplicationTtlMs =
+    const deduplicationTtlMs =
       options.deduplicationTtlMs ?? DEFAULT_DEDUPLICATION_TTL_MS;
-    this.maxDeduplicationEntries =
+    const maxDeduplicationEntries =
       options.maxDeduplicationEntries ?? DEFAULT_MAX_DEDUPLICATION_ENTRIES;
-    this.now = options.now ?? Date.now;
     this.probeHandler = options.probeHandler;
 
-    if (this.deduplicationTtlMs <= 0) {
+    if (deduplicationTtlMs <= 0) {
       throw new Error("deduplicationTtlMs must be positive");
     }
-    if (this.maxDeduplicationEntries <= 0) {
+    if (maxDeduplicationEntries <= 0) {
       throw new Error("maxDeduplicationEntries must be positive");
     }
+    this.deduplication = new QuickLRU({
+      maxAge: deduplicationTtlMs,
+      maxSize: maxDeduplicationEntries,
+    });
   }
 
   public start(): void {
@@ -143,7 +143,6 @@ export class HookshotToDeviceReceiver {
       return;
     }
 
-    this.pruneDeduplication();
     const deduplicationKey = `${event.sender}\u0000${request.integration_id}\u0000${request.request_id}`;
     if (this.deduplication.has(deduplicationKey)) {
       log.debug(
@@ -152,7 +151,7 @@ export class HookshotToDeviceReceiver {
       return;
     }
 
-    this.remember(deduplicationKey);
+    this.deduplication.set(deduplicationKey);
     log.debug(
       "Accepted to-device probe integration=" +
         request.integration_id +
@@ -192,25 +191,5 @@ export class HookshotToDeviceReceiver {
         " request_id=" +
         request.request_id,
     );
-  }
-
-  private pruneDeduplication(): void {
-    const expiresAt = this.now();
-    for (const [key, expiry] of this.deduplication) {
-      if (expiry <= expiresAt) {
-        this.deduplication.delete(key);
-      }
-    }
-  }
-
-  private remember(key: string): void {
-    this.deduplication.set(key, this.now() + this.deduplicationTtlMs);
-    while (this.deduplication.size > this.maxDeduplicationEntries) {
-      const oldest = this.deduplication.keys().next().value;
-      if (oldest === undefined) {
-        break;
-      }
-      this.deduplication.delete(oldest);
-    }
   }
 }
