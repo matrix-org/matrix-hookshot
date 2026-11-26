@@ -18,6 +18,8 @@ import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
 } from "../src/openproject/Schema";
 import {
+  HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
+  HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
   HOOKSHOT_LOGIN_START_EVENT_TYPE,
   HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
   HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
@@ -48,6 +50,28 @@ function waitForToDevice(
 
     client.on("to-device", onMessage);
   });
+}
+
+async function expectNoToDeviceResponse(
+  client: MatrixClient,
+  sendRequest: () => Promise<void>,
+  predicate: (message: IToDeviceMessage) => boolean,
+  timeoutMs = 2_000,
+): Promise<void> {
+  let receivedResponse = false;
+  const onMessage = (message: IToDeviceMessage): void => {
+    if (predicate(message)) {
+      receivedResponse = true;
+    }
+  };
+  client.on("to-device", onMessage);
+  try {
+    await sendRequest();
+    await new Promise((resolve) => setTimeout(resolve, timeoutMs));
+    expect(receivedResponse).toBe(false);
+  } finally {
+    client.off("to-device", onMessage);
+  }
 }
 
 const OPEN_PROJECT_PAYLOAD = {
@@ -590,6 +614,34 @@ describe("OpenProject", () => {
       };
       user.on("room.event", onRoomEvent);
 
+      const sendCapabilitiesProbe = async (
+        client: typeof user,
+        deviceId: string,
+        requestId: string,
+      ) => {
+        const responsePromise = waitForToDevice(
+          client,
+          (message) =>
+            message.type === HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE &&
+            message.sender === testEnv.botMxid &&
+            (message.content as Record<string, unknown>).request_id ===
+              requestId,
+        );
+        await client.sendToDevices(HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE, {
+          [testEnv.botMxid]: {
+            "*": {
+              v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+              request_id: requestId,
+              requesting_device_id: deviceId,
+              integration_id: "openproject",
+              room_id: roomId,
+              anchor_event_id: anchor.data.event_id,
+            },
+          },
+        });
+        return responsePromise;
+      };
+
       const sendLoginStart = async (
         client: typeof user,
         deviceId: string,
@@ -618,21 +670,25 @@ describe("OpenProject", () => {
         return responsePromise;
       };
 
-      const sendLoginStatus = async (requestId: string) => {
+      const sendLoginStatus = async (
+        client: typeof user,
+        deviceId: string,
+        requestId: string,
+      ) => {
         const responsePromise = waitForToDevice(
-          user,
+          client,
           (message) =>
             message.type === HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE &&
             message.sender === testEnv.botMxid &&
             (message.content as Record<string, unknown>).request_id ===
               requestId,
         );
-        await user.sendToDevices(HOOKSHOT_LOGIN_STATUS_EVENT_TYPE, {
+        await client.sendToDevices(HOOKSHOT_LOGIN_STATUS_EVENT_TYPE, {
           [testEnv.botMxid]: {
             "*": {
               v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
               request_id: requestId,
-              requesting_device_id: userDeviceId,
+              requesting_device_id: deviceId,
               integration_id: "openproject",
               room_id: roomId,
               anchor_event_id: anchor.data.event_id,
@@ -653,6 +709,32 @@ describe("OpenProject", () => {
       };
 
       try {
+        const disconnectedProbe = await sendCapabilitiesProbe(
+          user,
+          userDeviceId,
+          "openproject-capabilities-before-login",
+        );
+        expect(disconnectedProbe.content).toEqual({
+          v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+          request_id: "openproject-capabilities-before-login",
+          integration_id: "openproject",
+          result: "not_connected",
+          connection: "not_connected",
+          login: "available",
+        });
+
+        const deniedProbe = await sendCapabilitiesProbe(
+          deniedUser,
+          deniedDeviceId,
+          "openproject-capabilities-denied",
+        );
+        expect(deniedProbe.content).toEqual({
+          v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+          request_id: "openproject-capabilities-denied",
+          integration_id: "openproject",
+          result: "not_authorized",
+        });
+
         const deniedResponse = await sendLoginStart(
           deniedUser,
           deniedDeviceId,
@@ -662,6 +744,17 @@ describe("OpenProject", () => {
           request_id: "openproject-login-denied",
           integration_id: "openproject",
           result: "not_authorized",
+        });
+        const deniedStatus = await sendLoginStatus(
+          deniedUser,
+          deniedDeviceId,
+          "openproject-status-denied",
+        );
+        expect(deniedStatus.content).toEqual({
+          v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+          request_id: "openproject-status-denied",
+          integration_id: "openproject",
+          result: "unavailable",
         });
 
         const firstStart = await sendLoginStart(
@@ -685,6 +778,8 @@ describe("OpenProject", () => {
         );
         expect(failedCallback.status).toBe(404);
         const notConnected = await sendLoginStatus(
+          user,
+          userDeviceId,
           "openproject-status-after-failure",
         );
         expect(notConnected.content).toEqual({
@@ -712,6 +807,8 @@ describe("OpenProject", () => {
           "Your account has been bridged",
         );
         const connected = await sendLoginStatus(
+          user,
+          userDeviceId,
           "openproject-status-after-success",
         );
         expect(connected.content).toEqual({
@@ -719,6 +816,18 @@ describe("OpenProject", () => {
           request_id: "openproject-status-after-success",
           integration_id: "openproject",
           result: "connected",
+        });
+
+        const alreadyConnected = await sendLoginStart(
+          user,
+          userDeviceId,
+          "openproject-login-already-connected",
+        );
+        expect(alreadyConnected.content).toEqual({
+          v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+          request_id: "openproject-login-already-connected",
+          integration_id: "openproject",
+          result: "already_connected",
         });
 
         expect(exchangeBodies).toHaveLength(2);
@@ -756,7 +865,7 @@ describe("OpenProject", () => {
         globalThis.fetch = originalFetch;
       }
     },
-    8 * TO_DEVICE_RESPONSE_TIMEOUT_MS + 30_000,
+    10 * TO_DEVICE_RESPONSE_TIMEOUT_MS + 30_000,
   );
 
   test("should be able to handle a representative OpenProject update", async () => {
@@ -1331,4 +1440,82 @@ describe("OpenProject", () => {
       newContent["org.matrix.matrix-hookshot.openproject.snapshot_id"],
     ).not.toBe(initialSnapshotId);
   });
+});
+
+describe("OpenProject with the to-device receiver disabled", () => {
+  let testEnv: E2ETestEnv;
+
+  beforeAll(async () => {
+    testEnv = await E2ETestEnv.createTestEnv({
+      matrixLocalparts: ["user"],
+      config: {
+        openProject: {
+          webhook: { secret: "disabled-receiver-test-secret" },
+          baseUrl: "http://mytestproject.com/",
+          oauth: {
+            clientId: "test-client",
+            clientSecret: "test-client-secret",
+            redirectUri: "http://localhost/openproject/oauth",
+          },
+        },
+        toDevice: { receiver: { enabled: false } },
+      },
+    });
+    await testEnv.setUp();
+  }, E2ESetupTestTimeout);
+
+  afterAll(() => testEnv?.tearDown());
+
+  test("does not answer OpenProject capability or login requests", async () => {
+    const user = testEnv.getUser("user");
+    const deviceId = (await user.getWhoAmI()).device_id;
+    if (!deviceId) {
+      throw new Error("Expected test Matrix client to have a device ID");
+    }
+    const roomId = await user.createRoom({
+      name: "OpenProject disabled receiver",
+    });
+    const baseRequest = {
+      v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+      requesting_device_id: deviceId,
+      integration_id: "openproject",
+      room_id: roomId,
+      anchor_event_id: "$disabled-receiver-anchor",
+    };
+
+    const sendRequest = async (
+      eventType: string,
+      responseType: string,
+      requestId: string,
+    ): Promise<void> => {
+      await expectNoToDeviceResponse(
+        user,
+        async () => {
+          await user.sendToDevices(eventType, {
+            [testEnv.botMxid]: {
+              "*": {
+                ...baseRequest,
+                request_id: requestId,
+              },
+            },
+          });
+        },
+        (message) =>
+          message.type === responseType &&
+          message.sender === testEnv.botMxid &&
+          (message.content as Record<string, unknown>).request_id === requestId,
+      );
+    };
+
+    await sendRequest(
+      HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
+      HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      "openproject-disabled-capabilities",
+    );
+    await sendRequest(
+      HOOKSHOT_LOGIN_START_EVENT_TYPE,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      "openproject-disabled-login-start",
+    );
+  }, 20_000);
 });
