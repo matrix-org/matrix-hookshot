@@ -107,7 +107,7 @@
     "@storybook/addon-docs": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",
     "@testcontainers/redis": "^10.25.0",
-    "@tsconfig/node24": "^24",
+    "@tsconfig/node26": "^26.0.0",
     "@types/ajv": "^1.0.0",
     "@types/busboy": "^1.5.4",
     "@types/chai": "^4.2.22",
