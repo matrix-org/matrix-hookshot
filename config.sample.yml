@@ -164,12 +164,6 @@ listeners:
 #    prefix: "!feeds"
 #    service: feeds
 
-#toDevice:
-#  # (Optional) Configure Matrix to-device functionality.
-#  #     receiver.enabled enables to-device request handling for service bots and is disabled by default.
-#  receiver:
-#    enabled: false
-
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
 #  addToAdminRooms: false
@@ -218,6 +212,9 @@ listeners:
 
 #messaging:
 #  # (Optional) Message defaults
+#  allowClientIntegration:
+#    # (Optional) Allow clients to interact directly with service bot integrations. Off by default
+#    false
 #  allowUrlPreviews:
 #    # (Optional) Allow clients to generate their own URL previews from Hookshot messages. On by default
 #    true

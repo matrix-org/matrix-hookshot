@@ -34,3 +34,4 @@
 - [🔒 Encryption](./advanced/encryption.md)
 - [🪀 Widgets](./advanced/widgets.md)
 - [Service Bots](./advanced/service_bots.md)
+- [Client Integration](./advanced/client-integration.md)

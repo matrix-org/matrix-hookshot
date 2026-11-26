@@ -190,7 +190,7 @@ export class Bridge {
 
     await this.botUsersManager.start();
 
-    if (this.config.toDevice.receiver.enabled) {
+    if (this.config.messaging.allowClientIntegration) {
       await this.startToDeviceReceiver();
     }
 

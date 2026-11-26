@@ -46,7 +46,7 @@ describe("Appservice to-device delivery", () => {
     testEnv = await E2ETestEnv.createTestEnv({
       matrixLocalparts: ["user"],
       config: {
-        toDevice: { receiver: { enabled: true } },
+        messaging: { allowClientIntegration: true },
         serviceBots: [
           {
             localpart: "hookshot_openproject",
