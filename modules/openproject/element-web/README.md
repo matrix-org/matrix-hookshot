@@ -5,10 +5,10 @@ Element Web runtime modules.
 
 ## Element Web compatibility
 
-The module supports Element Web module API v2:
+The module requires Element Web module API v2.6.0 or newer:
 
 ```text
-^2.0.0
+^2.6.0
 ```
 
 It is configured in
@@ -31,4 +31,21 @@ The module artifact will be published at:
 
 ```text
 public/modules/openproject/element-web/index.js
+```
+
+## Configure for account connection
+
+To show **Connect my account** on active OpenProject anchor cards, add the
+selected bot and the trusted OpenProject origin to Element Web's configuration
+under `org.matrix.matrix-hookshot`:
+
+```json
+{
+  "org.matrix.matrix-hookshot": {
+    "integrationBots": {
+      "openproject": "@hookshot:example.org"
+    },
+    "openProjectBaseUrl": "https://projects.example.org"
+  }
+}
 ```
