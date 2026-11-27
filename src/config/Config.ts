@@ -117,10 +117,15 @@ export interface BridgeConfigChallengeHound {
   token?: string;
 }
 
+export interface BridgeConfigClientIntegrationApiYAML {
+  enable?: boolean;
+}
+
 export interface BridgeConfigRoot {
   bot?: BridgeConfigBot;
   bridge: BridgeConfigBridge;
   cache?: BridgeConfigCache;
+  clientIntegrationApi?: BridgeConfigClientIntegrationApiYAML;
   /**
    * @deprecated Old, unsupported encryption property.
    */
@@ -207,6 +212,11 @@ export class BridgeConfig {
   public readonly bot?: BridgeConfigBot;
   @configKey("Define additional bot users for specific services", true)
   public readonly serviceBots?: BridgeConfigServiceBot[];
+  @configKey(
+    "Allow clients to interact directly with service bot integrations. Disabled by default.",
+    true,
+  )
+  public readonly clientIntegrationApi: { enable: boolean };
   @configKey("EXPERIMENTAL support for complimentary widgets", true)
   public readonly widgets?: BridgeWidgetConfig;
   @configKey("Prometheus metrics support", true)
@@ -241,6 +251,25 @@ export class BridgeConfig {
     };
     this.bridge = configData.bridge;
     assert.ok(this.bridge);
+    if (
+      configData.clientIntegrationApi !== undefined &&
+      (typeof configData.clientIntegrationApi !== "object" ||
+        configData.clientIntegrationApi === null ||
+        Array.isArray(configData.clientIntegrationApi))
+    ) {
+      throw new ConfigError("clientIntegrationApi", "must be an object.");
+    }
+    const enableClientIntegration = configData.clientIntegrationApi?.enable;
+    if (
+      enableClientIntegration !== undefined &&
+      typeof enableClientIntegration !== "boolean"
+    ) {
+      throw new ConfigError(
+        "clientIntegrationApi.enable",
+        "must be a boolean.",
+      );
+    }
+    this.clientIntegrationApi = { enable: enableClientIntegration ?? false };
     this.messaging = new BridgeConfigMessaging(configData.messaging);
     this.github =
       configData.github && new BridgeConfigGitHub(configData.github);
