@@ -10,6 +10,42 @@ const minimalConfig = {
 };
 
 describe("Config/BridgeConfig", () => {
+  describe("client integration API", () => {
+    it("defaults to disabled and accepts explicit boolean values", () => {
+      expect(
+        new BridgeConfig(DefaultConfigRoot).clientIntegrationApi.enable,
+      ).toBe(false);
+      expect(
+        new BridgeConfig({
+          ...DefaultConfigRoot,
+          clientIntegrationApi: { enable: true },
+        }).clientIntegrationApi.enable,
+      ).toBe(true);
+      expect(
+        new BridgeConfig({
+          ...DefaultConfigRoot,
+          clientIntegrationApi: { enable: false },
+        }).clientIntegrationApi.enable,
+      ).toBe(false);
+    });
+
+    it("rejects invalid settings", () => {
+      expect(
+        () =>
+          new BridgeConfig({
+            ...minimalConfig,
+            clientIntegrationApi: { enable: "true" as unknown as boolean },
+          }),
+      ).toThrow("clientIntegrationApi.enable");
+      expect(
+        () =>
+          new BridgeConfig({
+            ...minimalConfig,
+            clientIntegrationApi: null as unknown as { enable: boolean },
+          }),
+      ).toThrow("clientIntegrationApi");
+    });
+  });
   describe("will handle the legacy queue.monolitihc option", () => {
     it("with no parameters", () => {
       const config = new BridgeConfig({
