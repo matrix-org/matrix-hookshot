@@ -3,14 +3,10 @@ import {
   BotCommands,
   handleCommand,
   HelpFunction,
+  type ResolvedCommand,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
-import {
-  IRichReplyMetadata,
-  MatrixClient,
-  MessageEvent,
-  RoomEvent,
-} from "matrix-bot-sdk";
+import { MatrixClient, RoomEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
@@ -19,6 +15,8 @@ import { BridgeConfigMessaging } from "../config/sections";
 import markdownit from "markdown-it";
 const md = markdownit();
 const log = new Logger("CommandConnection");
+
+export const HOOKSHOT_COMMAND_EVENT_TYPE = "org.matrix.matrix-hookshot.command";
 
 /**
  * Connection class that handles commands for a given connection. Should be used
@@ -49,6 +47,14 @@ export abstract class CommandConnection<
     return (this.state.commandPrefix || this.defaultCommandPrefix) + " ";
   }
 
+  protected get helpCommandPrefix(): string {
+    return this.commandPrefix;
+  }
+
+  protected get helpShorthandPrefix(): string {
+    return `${this.defaultCommandPrefix} `;
+  }
+
   public conflictsWithCommandPrefix(commandPrefix: string) {
     return this.commandPrefix === commandPrefix + " ";
   }
@@ -65,6 +71,7 @@ export abstract class CommandConnection<
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
     parentEvent?: RoomEvent<IJsonType>,
+    resolvedCommand?: ResolvedCommand,
   ) {
     const commandResult = await handleCommand(
       ev.sender,
@@ -76,6 +83,7 @@ export abstract class CommandConnection<
       this.serviceName,
       this.commandPrefix,
       this.defaultCommandPrefix,
+      resolvedCommand,
     );
     if (commandResult.handled !== true) {
       // Not for us.
@@ -95,6 +103,15 @@ export abstract class CommandConnection<
         body: humanError
           ? `Failed to handle command: ${humanError}`
           : "Failed to handle command.",
+        ...(this.serviceName
+          ? {
+              [HOOKSHOT_COMMAND_EVENT_TYPE]: {
+                service: this.serviceName,
+                type: "response",
+                status: "error",
+              },
+            }
+          : {}),
       });
       log.warn(`Failed to handle command:`, error ?? "Unknown error");
       return true;
@@ -111,22 +128,27 @@ export abstract class CommandConnection<
     }
   }
 
-  @botCommand("help", "This help text")
+  @botCommand("help", {
+    help: "This help text",
+    helpUsages: [{ args: [], prefix: "global" }],
+    runOnGlobalPrefix: true,
+  })
   public async helpCommand() {
     return this.botClient.sendEvent(
       this.roomId,
       "m.room.message",
       this.helpMessage(
-        this.commandPrefix,
+        this.helpCommandPrefix,
         this.helpCategories,
         this.includeTitlesInHelp,
+        this.helpShorthandPrefix,
       ),
     );
   }
 
   protected sendEvent(
     body: string,
-    extraContent: any = {},
+    extraContent: object = {},
     opts = { inline: true },
   ) {
     const content = this.msgConfig.formatMatrixMessage(

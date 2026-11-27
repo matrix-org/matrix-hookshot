@@ -1,4 +1,4 @@
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, Intent } from "matrix-bot-sdk";
 import { JiraProjectConnection } from "../Connections";
 import { GrantChecker } from "../grants/GrantCheck";
 import { UserTokenStore } from "../tokens/UserTokenStore";
@@ -10,9 +10,10 @@ interface OpenProjectGrantConnectionId {
 export class OpenProjectGrantChecker extends GrantChecker<OpenProjectGrantConnectionId> {
   constructor(
     private readonly as: Appservice,
+    intent: Intent,
     private readonly tokenStore: UserTokenStore,
   ) {
-    super(as.botIntent, "openproject");
+    super(intent, "openproject");
   }
 
   protected async checkFallback(

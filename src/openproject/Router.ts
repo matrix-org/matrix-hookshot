@@ -59,7 +59,7 @@ export class OpenProjectWebhooksRouter {
       throw new ApiError("Missing 'code' parameter", ErrCode.BadValue);
     }
     const { state, code } = req.query;
-    log.info(`Got new OpenProject oauth request (${state.substring(0, 8)})`);
+    log.info("Received OpenProject OAuth callback");
     try {
       result = await this.queue.pushWait<OAuthRequest, OAuthRequestResult>({
         eventName: "openproject.oauth.response",
