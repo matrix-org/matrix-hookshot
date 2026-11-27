@@ -192,7 +192,7 @@ export class Bridge {
 
     await this.botUsersManager.start();
 
-    if (this.config.messaging.allowClientIntegration) {
+    if (this.config.clientIntegrationApi.enable) {
       await this.startToDeviceReceiver();
     }
 
