@@ -3,8 +3,8 @@
 Client integration lets Matrix clients interact directly with Hookshot service bot integrations. It is disabled by default. To enable it, add the following to the Hookshot configuration:
 
 ```yaml
-messaging:
-  allowClientIntegration: true
+clientIntegrationApi:
+  enable: true
 ```
 
 The current implementation uses Matrix to-device messages for e.g. capability probes. It provides a transport-level response; without an integration handler, the response reports `unavailable`. Additional client integration flows may be introduced in the future.

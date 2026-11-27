@@ -164,6 +164,10 @@ listeners:
 #    prefix: "!feeds"
 #    service: feeds
 
+#clientIntegrationApi:
+#  # (Optional) Allow clients to interact directly with service bot integrations. Disabled by default.
+#  enable: false
+
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
 #  addToAdminRooms: false
@@ -212,9 +216,6 @@ listeners:
 
 #messaging:
 #  # (Optional) Message defaults
-#  allowClientIntegration:
-#    # (Optional) Allow clients to interact directly with service bot integrations. Off by default
-#    false
 #  allowUrlPreviews:
 #    # (Optional) Allow clients to generate their own URL previews from Hookshot messages. On by default
 #    true
